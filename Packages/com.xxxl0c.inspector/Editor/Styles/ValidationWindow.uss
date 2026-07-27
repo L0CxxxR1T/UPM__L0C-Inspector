@@ -1,0 +1,52 @@
+.l0c-validation__toolbar {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px;
+}
+
+.l0c-validation__toolbar > * {
+    margin-right: 8px;
+}
+
+.l0c-validation__summary {
+    padding-left: 4px;
+    padding-bottom: 4px;
+    -unity-font-style: bold;
+}
+
+.l0c-validation__list {
+    flex-grow: 1;
+}
+
+.l0c-validation__row {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.l0c-validation__severity {
+    width: 70px;
+    -unity-font-style: bold;
+}
+
+.l0c-validation__severity--error {
+    color: rgb(220, 90, 90);
+}
+
+.l0c-validation__severity--warning {
+    color: rgb(210, 170, 60);
+}
+
+.l0c-validation__location {
+    width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -unity-text-overflow-position: end;
+}
+
+.l0c-validation__message-text {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

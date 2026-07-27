@@ -1,0 +1,20 @@
+{
+    "name": "XXXL0C.Inspector.Samples.Editor",
+    "rootNamespace": "XXXL0C.Inspector.Samples.Editor",
+    "references": [
+        "XXXL0C.Inspector",
+        "XXXL0C.Inspector.Editor",
+        "XXXL0C.Inspector.Samples"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

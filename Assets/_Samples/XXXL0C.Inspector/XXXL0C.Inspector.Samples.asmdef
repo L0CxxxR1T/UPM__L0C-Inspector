@@ -1,0 +1,16 @@
+{
+    "name": "XXXL0C.Inspector.Samples",
+    "rootNamespace": "XXXL0C.Inspector.Samples",
+    "references": [
+        "XXXL0C.Inspector"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

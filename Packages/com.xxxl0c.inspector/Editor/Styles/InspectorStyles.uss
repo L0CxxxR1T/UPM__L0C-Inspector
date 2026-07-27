@@ -1,0 +1,118 @@
+.l0c-inspector__row {
+    margin-bottom: 1px;
+}
+
+.l0c-inspector__message {
+    margin-top: 2px;
+    margin-bottom: 4px;
+    margin-left: 3px;
+    margin-right: 3px;
+}
+
+/* 長い文章が横に溢れず折り返すようにする */
+.l0c-inspector__message Label {
+    white-space: normal;
+}
+
+/* ---- グループ ---- */
+
+.l0c-inspector__group {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.l0c-inspector__group--box {
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.35);
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.l0c-inspector__group-header {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.l0c-inspector__group-header Label {
+    -unity-font-style: bold;
+}
+
+.l0c-inspector__group-content {
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.l0c-inspector__group--foldout {
+    padding-left: 3px;
+}
+
+/* ---- 検証バッジ ---- */
+
+.l0c-inspector__badge {
+    margin-left: 6px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border-radius: 8px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    min-width: 16px;
+    color: rgb(255, 255, 255);
+}
+
+.l0c-inspector__badge--error {
+    background-color: rgb(180, 45, 45);
+}
+
+.l0c-inspector__badge--warning {
+    background-color: rgb(170, 130, 30);
+}
+
+/* ---- 自前展開したネストクラス ---- */
+
+.l0c-inspector__nested {
+    margin-top: 2px;
+}
+
+/* ---- IFieldFactory が辞退したときの通知（検証メッセージとは別領域） ---- */
+
+.l0c-inspector__notice {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+/* ---- Prefix / Suffix ---- */
+
+.l0c-inspector__affix-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.l0c-inspector__affix-label {
+    margin-left: 4px;
+    margin-right: 4px;
+    -unity-text-align: middle-left;
+}
+
+/* ---- InlineEditor ---- */
+
+.l0c-inspector__inline-editor {
+    margin-left: 12px;
+    margin-top: 2px;
+    padding-left: 6px;
+    border-left-width: 2px;
+    border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ---- Button ---- */
+
+.l0c-inspector__button {
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
