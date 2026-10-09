@@ -11,7 +11,7 @@
 そのため1フィールドに何個属性を付けても全部効く。
 
 ```
-型に対する描画   → PropertyDrawer      （SerializableDictionary、独自の値型など）
+型に対する描画   → PropertyDrawer      （独自の値型など。Dictionary は Unity 標準の Drawer を使う）
 属性による装飾   → 中央 Editor が解釈   （Required / ReadOnly / 今後追加するもの）
 ```
 
@@ -36,6 +36,8 @@ public sealed class Player : MonoBehaviour
 
 扱う属性が1つも付いていないクラスは標準インスペクタをそのまま出すので、
 他のアセットのコンポーネントの見た目は変わらない。
+例外は Dictionary フィールドを持つクラスで、属性が無くても追加欄と重複キーの検証が付く
+（→「Dictionary（Unity 6.6 以降）」）。
 
 ### 個別 CustomEditor と併用する
 
