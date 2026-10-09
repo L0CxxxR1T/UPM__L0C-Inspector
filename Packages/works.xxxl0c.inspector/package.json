@@ -2,7 +2,7 @@
   "name": "works.xxxl0c.inspector",
   "version": "1.0.0",
   "displayName": "L0C_Basics: Inspector",
-  "description": "\u5c5e\u6027\u30d9\u30fc\u30b9\u306e\u30a4\u30f3\u30b9\u30da\u30af\u30bf\u62e1\u5f35\u3002\u5c5e\u6027\u306e\u89e3\u91c8\u3092\u4e2d\u592e Editor \u306b\u96c6\u7d04\u3057\u30011\u30d5\u30a3\u30fc\u30eb\u30c9\u306b\u8907\u6570\u306e\u5c5e\u6027\u3092\u4f75\u8a18\u3067\u304d\u308b\u3002",
+  "description": "属性ベースのインスペクタ拡張。\n属性の解釈を中央エディタに集約し、1フィールドに複数の属性を併記できる。",
   "unity": "6000.3",
   "keywords": [
     "attributes",
