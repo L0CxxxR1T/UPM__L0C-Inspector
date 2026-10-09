@@ -16,11 +16,29 @@ namespace XXXL0C.Inspector.Editor
         /// </summary>
         public VisualElement BadgeHost { get; }
 
+        /// <summary>
+        /// Root の外にある見出し（タブの見出しなど）。グループが空になったら Root と一緒に隠す。無ければ null。
+        /// </summary>
+        public VisualElement DetachedHeader { get; }
+
         public GroupContainer(VisualElement root, VisualElement content, VisualElement badgeHost)
+            : this(root, content, badgeHost, null)
+        {
+        }
+
+        public GroupContainer(VisualElement root, VisualElement content, VisualElement badgeHost, VisualElement detachedHeader)
         {
             Root = root;
             Content = content;
             BadgeHost = badgeHost;
+            DetachedHeader = detachedHeader;
+        }
+
+        internal void SetVisible(bool visible)
+        {
+            DisplayStyle display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            Root.style.display = display;
+            if (DetachedHeader != null) DetachedHeader.style.display = display;
         }
     }
 }

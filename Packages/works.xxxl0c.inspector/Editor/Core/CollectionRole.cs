@@ -12,6 +12,9 @@ namespace XXXL0C.Inspector.Editor
         /// <summary>配列 / List の要素。</summary>
         Element,
 
+        /// <summary>配列 / List そのもの（要素ではなくコンテナ）。空かどうかなど、コンテナ単位の検証に使う。</summary>
+        Collection,
+
         /// <summary>Dictionary そのもの（要素ではなくコンテナ）。</summary>
         Dictionary,
 

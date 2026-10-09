@@ -53,6 +53,33 @@
     padding-left: 3px;
 }
 
+.l0c-inspector__group--horizontal {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.l0c-inspector__group--horizontal > * {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.l0c-inspector__group--horizontal .unity-base-field__label {
+    width: auto;
+    min-width: 0;
+}
+
+.l0c-inspector__group--tab {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.l0c-inspector__group-tab-page {
+    padding-top: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
 /* ---- 検証バッジ ---- */
 
 .l0c-inspector__badge {
@@ -151,7 +178,52 @@
     margin-left: 15px;
 }
 
+.l0c-inspector__type-filter-list {
+    margin-left: 8px;
+    margin-bottom: 4px;
+}
+
+.l0c-inspector__type-filter-list > .unity-list-view__item {
+    min-width: 0;
+}
+
+.l0c-inspector__preview {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-left: 4px;
+}
+
 /* ---- Button ---- */
+
+.l0c-inspector__button-row {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.l0c-inspector__button-row > .l0c-inspector__button-block {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.l0c-inspector__button-block {
+    min-width: 0;
+}
+
+.l0c-inspector__button-parameters {
+    margin-bottom: 3px;
+}
+
+.l0c-inspector__button-result {
+    margin-top: 2px;
+    white-space: normal;
+}
+
+.l0c-inspector__button-result Label {
+    white-space: normal;
+}
 
 .l0c-inspector__button {
     margin-top: 3px;

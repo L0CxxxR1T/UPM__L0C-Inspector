@@ -6,8 +6,8 @@ namespace XXXL0C.Inspector.Editor
 {
     /// <summary>
     /// 要素がパネルに接続されているあいだだけ EditorApplication.playModeStateChanged を購読し、
-    /// Play Mode の切り替えに追従して再評価する。[ReadOnlyInPlayMode] と [Button] の
-    /// EditorOnly / PlayModeOnly が共有する。
+    /// Play Mode の切り替えに追従して再評価する。[ReadOnlyInPlayMode]、[Button] の
+    /// EditorOnly / PlayModeOnly、インスペクタの更新パス（[HideInPlayMode] など）が共有する。
     /// </summary>
     internal static class PlayModeTracking
     {

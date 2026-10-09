@@ -45,11 +45,12 @@ namespace XXXL0C.Inspector.Editor
                 _buffer.Clear();
 
                 // インスペクタと同じ判定を通す。ここがズレると3層の結果が食い違う
-                bool visible = VisibilityEvaluator.IsVisible(property, fieldInfo, property.displayName, _buffer);
+                bool active = VisibilityEvaluator.IsVisible(property, fieldInfo, property.displayName, _buffer)
+                    && VisibilityEvaluator.IsEnabled(property, fieldInfo, property.displayName, _buffer);
 
-                // 非表示のフィールドは検証しない（設定できないものを未設定だと責めない）。
-                // ただし可視性ルール自体が誤用で Warning を出していた場合は、それだけは報告する
-                if (visible)
+                // 非表示・編集不可のフィールドは検証しない（設定できないものを未設定だと責めない）。
+                // ただし可視性・編集可否のルール自体が誤用で Warning を出していた場合は、それだけは報告する
+                if (active)
                 {
                     ValidationWalker.Collect(property, fieldInfo, _buffer, hasOwnRow: null);
                 }

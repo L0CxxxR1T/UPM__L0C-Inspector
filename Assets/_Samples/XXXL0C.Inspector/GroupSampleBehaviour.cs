@@ -51,5 +51,17 @@ namespace XXXL0C.Inspector.Samples
 
         // グループに入れないフィールド。宣言順どおりグループの後に出る
         [SerializeField] private bool _enabledOnStart = true;
+
+        [HorizontalGroup("横並び")]
+        [SerializeField] private int _leftValue = 12;
+
+        [HorizontalGroup("横並び")]
+        [SerializeField] private int _rightValue = 34;
+
+        [TabGroup("詳細", "基本")]
+        [SerializeField] private string _tabDescription = "基本ページ";
+
+        [TabGroup("詳細", "補足")]
+        [SerializeField] private bool _tabEnabled = true;
     }
 }

@@ -10,7 +10,8 @@ namespace XXXL0C.Inspector.Editor
     internal static class ButtonMethodCache
     {
         private const BindingFlags METHOD_FLAGS =
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+            BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic
+            | BindingFlags.DeclaredOnly;
 
         private static readonly Dictionary<Type, IReadOnlyList<MethodInfo>> _cache =
             new Dictionary<Type, IReadOnlyList<MethodInfo>>();
@@ -32,7 +33,9 @@ namespace XXXL0C.Inspector.Editor
             {
                 foreach (MethodInfo method in current.GetMethods(METHOD_FLAGS))
                 {
-                    if (method.IsDefined(typeof(ButtonAttribute), false) && !method.IsGenericMethodDefinition)
+                    bool hasButton = method.IsDefined(typeof(ButtonAttribute), false);
+                    bool hasButtonGroup = method.IsDefined(typeof(ButtonGroupAttribute), false);
+                    if ((hasButton || hasButtonGroup) && !method.IsGenericMethodDefinition)
                     {
                         methods.Add(method);
                     }

@@ -29,14 +29,40 @@ namespace XXXL0C.Inspector.Samples
         [Button("編集中だけ有効", ButtonMode.EditorOnly)]
         private void EditorOnlyAction() => Debug.Log("[XXXL0C.Inspector] EditorOnlyAction を実行しました。");
 
-        // 引数ありメソッドに付けた誤用。標準のボタンにはならず、notice が出る
+        // ref 引数は対象外なので notice が出る
         [Button]
-        private void Misused(int _unused)
+        private void Misused(ref int _unused)
         {
         }
 
         // ボタンだけのグループ。フィールドが1つも無くても隠れないことの確認用
         [Button(group: "ボタンのみ")]
         private void ButtonOnlyGroupAction() => Debug.Log("[XXXL0C.Inspector] ButtonOnlyGroupAction を実行しました。");
+
+        [Button("指定回数を加算", group: "操作")]
+        [ButtonGroup("カウント")]
+        private int AddCount(int amount = 2)
+        {
+            _clickCount += amount;
+            return _clickCount;
+        }
+
+        [Button("カウントを説明", group: "操作")]
+        [ButtonGroup("カウント")]
+        private string DescribeCount(string prefix = "現在のカウント") => $"{prefix}: {_clickCount}";
+
+        [Button("static の挨拶")]
+        private static string StaticGreeting(string name = "Inspector") => $"こんにちは、{name}さん";
+
+        [Button("引数の型サンプル")]
+        private Vector3 ParameterTypes(
+            long count = 3,
+            double ratio = 0.5,
+            bool enabled = true,
+            Vector2 offset = default,
+            Vector2Int cell = default,
+            Color color = default,
+            UnityEngine.Object asset = null)
+            => new Vector3(count * (float)ratio, enabled ? offset.x : 0f, cell.y + color.a + (asset == null ? 0f : 1f));
     }
 }

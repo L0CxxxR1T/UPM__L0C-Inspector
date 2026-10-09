@@ -12,7 +12,7 @@
 
 ```
 型に対する描画   → PropertyDrawer      （独自の値型など。Dictionary は Unity 標準の Drawer を使う）
-属性による装飾   → 中央 Editor が解釈   （Required / ReadOnly / 今後追加するもの）
+属性による装飾   → 中央 Editor が解釈   （Required / ReadOnly / 条件 / 検証 / グループ）
 ```
 
 ## 使い方
@@ -99,6 +99,51 @@ public sealed class PlayerEditor : UnityEditor.Editor
 - メソッドやプロパティを条件にできないのは意図的。将来のビルド前バリデータが条件を評価する際に
   アセット上でユーザーコードを実行することになり、副作用があると事故る
 
+### `[EnableIf]` / `[DisableIf]`
+
+フィールドを表示したまま編集可否を条件で切り替える。条件の指定方法は `[ShowIf]` と同じで、対象はフィールド、指定は `nameof`。
+`[EnableIf]` は条件が成立したときだけ編集でき、`[DisableIf]` は成立したとき表示のみになる。
+編集できないフィールドは検証対象から外れる。
+
+### `[NotEmpty]` / `[MinValue]` / `[MaxValue]`
+
+- `[NotEmpty]` は文字列・配列・List が空のとき Warning を出す。メッセージは省略できる
+- `[MinValue]` / `[MaxValue]` は数値の下限・上限を指定する。編集値は範囲内に丸め、範囲外の値は検証でも検出する
+
+```csharp
+[NotEmpty("名前を入力してください")]
+[SerializeField] private string _name;
+
+[MinValue(1)]
+[MaxValue(20)]
+[SerializeField] private int _count = 4;
+```
+
+### Object 参照の制約
+
+- `[AssetsOnly]` は Project 内のアセットだけを許可する
+- `[SceneObjectsOnly]` はシーン上のオブジェクトだけを許可する
+- `[ChildGameObjectsOnly]` はこのコンポーネントの子孫を許可する。`ChildGameObjectsOnly(false)` で自分自身を除外できる
+
+違反は検証層が Error として報告する。各属性は GameObject / Component の参照に使う。
+
+### `[HideInPlayMode]` / `[HideInEditMode]` / `[DisableInEditMode]`
+
+Play Mode または Edit Mode に応じてフィールドを隠す、または編集不可にする。インスペクタを開いたままモードを切り替えても追従する。
+
+### `[HorizontalGroup]` / `[TabGroup]`
+
+フィールドを横並び、またはタブページにまとめる。`HorizontalGroup` のパスはグループ名、`TabGroup` は入れ物とページ名を指定する。
+タブページを含むパスは「外側のグループ / 入れ物 / ページ」の順にする。
+
+```csharp
+[HorizontalGroup("位置")]
+[SerializeField] private float _x;
+
+[TabGroup("詳細", "基本")]
+[SerializeField] private string _description;
+```
+
 ### `[BoxGroup]` / `[FoldoutGroup]`
 
 見た目のグループにまとめる。`"/"` で区切ると入れ子になる。
@@ -167,8 +212,27 @@ Play Mode 中だけ編集を禁止する。インスペクタを開いたまま 
 - `[SceneName]` の候補はアクティブな Build Profile のシーンリスト（有効なものだけ）。
   一覧に無い名前が入っていると検証層が Error を出す（空文字は対象外）
 - `[TypeFilter]` の候補は、フィールドの型（または `[TypeFilter(typeof(基底型))]`）を継承した
-  `[Serializable]` で引数なしコンストラクタを持つ具象クラス。`[SerializeReference]` の配列・`List` の要素には未対応
-  （`SerializableType` は配列・`List` でも使える。下記）
+  `[Serializable]` で引数なしコンストラクタを持つ具象クラス。`[SerializeReference]` の配列・`List` にも使える
+  （`SerializableType` は型名を保存し、配列・`List` でも使える。下記）
+
+### `[EnumToggleButtons]` / `[PreviewField]` / `[ValueDropdown]`
+
+- `[EnumToggleButtons]` は enum を横並びのボタンにする。`[Flags]` enum は複数選択できる
+- `[PreviewField]` は Object 参照欄の右にプレビューを表示する。サイズは属性の引数で指定する
+- `[ValueDropdown(nameof(候補フィールド))]` は `static readonly` の配列・List、または `ValueDropdownList<T>` から値を選ぶ。メソッドやプロパティは候補元にできない
+
+### `[Button]` / `[ButtonGroup]`
+
+メソッドを呼び出すボタンを表示する。static メソッドは1回だけ呼び、instance メソッドは選択中の各オブジェクトで呼ぶ。
+引数欄は `int` / `long` / `float` / `double` / `string` / `bool` / enum / `Vector2`〜`Vector4` / `Vector2Int` / `Vector3Int` / `Color` / Object 派生型に対応する。
+既定値は引数の既定値を使い、戻り値はボタンの下に表示する。`[ButtonGroup("名前")]` を併記すると、同じ置き場所にあるボタンを横並びにする。
+未対応型、`ref`、`out` 引数は HelpBox で通知する。
+
+```csharp
+[Button("加算", group: "操作")]
+[ButtonGroup("カウント")]
+private int Add(int amount = 1) => _count += amount;
+```
 
 ## 値の型
 
@@ -289,8 +353,10 @@ Unity 6.6 の標準 Dictionary シリアライズ（`[SerializeField] Dictionary
 | `IPropertyDecorator` | 構築時1回 | 1フィールドの見た目を加工する（複数個を重ねられる） |
 | `IFieldFactory` | 構築時1回 | 1フィールドの本体を作る（1つしか適用できない） |
 | `IVisibilityRule` | 更新時（検証より前） | 表示 / 非表示 |
+| `IEnabledRule` | 更新時（検証より前） | 編集可否 |
 | `IValidationRule` | 更新時 | メッセージ |
 | `IGroupContainerFactory` | 構築時1回 | グループコンテナの種類 |
+| `IGroupPageFactory` | 構築時1回 | タブなどページを持つグループ |
 
 `[Button]` はメソッド対象という別軸の性質上、上記の拡張点システムには乗っていない
 （`ButtonSectionBuilder` が直接処理する）。
@@ -372,9 +438,5 @@ public sealed class TooltipDecorator : IPropertyDecorator
 
 UI に依存しない処理（`ConditionEvaluator` / `PropertyPathUtility` / パスの分解 / ステップ丸めなど）は
 `Tests/EditMode` に EditMode テストがある。Test Runner の EditMode タブから実行できる。
-
-## 未実装
-
-`[NotEmpty]`。
 
 自前の `SerializableDictionary` は作らない。Unity 6.6 の標準 Dictionary シリアライズを使う。

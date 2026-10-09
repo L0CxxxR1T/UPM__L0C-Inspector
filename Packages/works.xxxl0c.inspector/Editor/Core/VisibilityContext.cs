@@ -5,7 +5,7 @@ using UnityEditor;
 
 namespace XXXL0C.Inspector.Editor
 {
-    /// <summary>可視性ルールに渡す情報。</summary>
+    /// <summary>可視性ルールと編集可否ルールに渡す情報。</summary>
     public sealed class VisibilityContext
     {
         private readonly List<ValidationMessage> _messages;

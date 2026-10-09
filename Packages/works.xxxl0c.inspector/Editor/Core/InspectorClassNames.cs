@@ -13,6 +13,9 @@ namespace XXXL0C.Inspector.Editor
         public const string GROUP = "l0c-inspector__group";
         public const string GROUP_BOX = "l0c-inspector__group--box";
         public const string GROUP_FOLDOUT = "l0c-inspector__group--foldout";
+        public const string GROUP_HORIZONTAL = "l0c-inspector__group--horizontal";
+        public const string GROUP_TAB = "l0c-inspector__group--tab";
+        public const string GROUP_TAB_PAGE = "l0c-inspector__group-tab-page";
         public const string GROUP_HEADER = "l0c-inspector__group-header";
         public const string GROUP_CONTENT = "l0c-inspector__group-content";
 
@@ -34,6 +37,13 @@ namespace XXXL0C.Inspector.Editor
         public const string INLINE_EDITOR_NOTICE = "l0c-inspector__inline-editor-notice";
 
         public const string TYPE_FILTER_CONTENT = "l0c-inspector__type-filter-content";
+        public const string TYPE_FILTER_LIST = "l0c-inspector__type-filter-list";
+
+        public const string ENUM_TOGGLE_BUTTONS = "l0c-inspector__enum-toggle-buttons";
+
+        public const string PREVIEW = "l0c-inspector__preview";
+
+        public const string VALUE_DROPDOWN = "l0c-inspector__value-dropdown";
 
         public const string OPTIONAL = "l0c-inspector__optional";
         public const string OPTIONAL_VALUE = "l0c-inspector__optional-value";
@@ -41,6 +51,10 @@ namespace XXXL0C.Inspector.Editor
 
         public const string BUTTON = "l0c-inspector__button";
         public const string BUTTON_FOOTER = "l0c-inspector__button-footer";
+        public const string BUTTON_ROW = "l0c-inspector__button-row";
+        public const string BUTTON_BLOCK = "l0c-inspector__button-block";
+        public const string BUTTON_PARAMETERS = "l0c-inspector__button-parameters";
+        public const string BUTTON_RESULT = "l0c-inspector__button-result";
 
         public const string DICTIONARY_FIELD = "l0c-inspector__dictionary";
         public const string DICTIONARY_ADD = "l0c-inspector__dictionary-add";

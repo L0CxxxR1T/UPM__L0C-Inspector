@@ -6,7 +6,7 @@ using UnityEngine;
 namespace XXXL0C.Inspector.Editor
 {
     /// <summary>
-    /// IPropertyDecorator / IValidationRule の実装を TypeCache で自動収集し、属性型から引けるようにする。
+    /// 各拡張点（IPropertyDecorator / IValidationRule など）の実装を TypeCache で自動収集し、属性型から引けるようにする。
     /// 属性を足すときは「属性クラス + 実装クラス」だけで完結し、登録先を書き換える必要は無い。
     /// </summary>
     internal static class ExtensionRegistry
@@ -16,11 +16,12 @@ namespace XXXL0C.Inspector.Editor
         private static Dictionary<Type, IPropertyDecorator> _decorators;
         private static Dictionary<Type, IValidationRule> _rules;
         private static Dictionary<Type, IVisibilityRule> _visibilityRules;
+        private static Dictionary<Type, IEnabledRule> _enabledRules;
         private static Dictionary<Type, IGroupContainerFactory> _groupFactories;
         private static Dictionary<Type, IFieldFactory> _fieldFactories;
         private static HashSet<Type> _handledAttributes;
 
-        /// <summary>5系統の拡張点のいずれかが担当している属性型か。</summary>
+        /// <summary>6系統の拡張点のいずれかが担当している属性型か。</summary>
         public static bool IsHandled(Type attributeType)
         {
             EnsureInitialized();
@@ -45,6 +46,12 @@ namespace XXXL0C.Inspector.Editor
             return _visibilityRules.TryGetValue(attributeType, out IVisibilityRule rule) ? rule : null;
         }
 
+        public static IEnabledRule FindEnabledRule(Type attributeType)
+        {
+            EnsureInitialized();
+            return _enabledRules.TryGetValue(attributeType, out IEnabledRule rule) ? rule : null;
+        }
+
         public static IGroupContainerFactory FindGroupFactory(Type attributeType)
         {
             EnsureInitialized();
@@ -65,12 +72,14 @@ namespace XXXL0C.Inspector.Editor
             _decorators = Collect<IPropertyDecorator>(decorator => decorator.AttributeType);
             _rules = Collect<IValidationRule>(rule => rule.AttributeType);
             _visibilityRules = Collect<IVisibilityRule>(rule => rule.AttributeType);
+            _enabledRules = Collect<IEnabledRule>(rule => rule.AttributeType);
             _groupFactories = Collect<IGroupContainerFactory>(factory => factory.AttributeType);
             _fieldFactories = Collect<IFieldFactory>(factory => factory.AttributeType);
 
             _handledAttributes = new HashSet<Type>(_decorators.Keys);
             _handledAttributes.UnionWith(_rules.Keys);
             _handledAttributes.UnionWith(_visibilityRules.Keys);
+            _handledAttributes.UnionWith(_enabledRules.Keys);
             _handledAttributes.UnionWith(_groupFactories.Keys);
             _handledAttributes.UnionWith(_fieldFactories.Keys);
         }

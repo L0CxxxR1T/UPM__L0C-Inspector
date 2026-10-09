@@ -5,7 +5,7 @@ using UnityEditor;
 namespace XXXL0C.Inspector.Editor
 {
     /// <summary>
-    /// 構築済みツリーに紐付く更新パス。可視性 → 検証 → バッジ伝播 / 空グループ判定 の順に走る。
+    /// 構築済みツリーに紐付く更新パス。可視性 → 編集可否 → 検証 → バッジ伝播 / 空グループ判定 の順に走る。
     /// </summary>
     internal sealed class InspectorSession
     {
@@ -54,8 +54,14 @@ namespace XXXL0C.Inspector.Editor
                         || VisibilityEvaluator.IsVisible(property, row.FieldInfo, row.Attributes, row.Label, _buffer));
                 row.SetVisible(visible);
 
-                // 非表示のフィールドは検証しない（設定できないものを未設定だと責めない）
-                if (visible && !multiEditing && property != null)
+                bool enabled = !visible
+                    || property == null
+                    || VisibilityEvaluator.IsEnabled(property, row.FieldInfo, row.Attributes, row.Label, _buffer);
+                bool active = visible && enabled && IsParentActive(row.PropertyPath);
+                row.SetEnabled(enabled, active);
+
+                // 非表示・編集不可のフィールドは検証しない（設定できないものを未設定だと責めない）
+                if (active && !multiEditing && property != null)
                 {
                     ValidationWalker.Collect(property, row.FieldInfo, _buffer, _hasOwnRow);
                 }
@@ -75,6 +81,15 @@ namespace XXXL0C.Inspector.Editor
             if (parentPath.Length == 0) return true;
 
             return !_rowsByPath.TryGetValue(parentPath, out InspectorRow parent) || parent.IsVisible;
+        }
+
+        /// <summary>自前展開したネストクラスの親行が非表示または編集不可なら false。</summary>
+        private bool IsParentActive(string propertyPath)
+        {
+            string parentPath = PropertyPathUtility.GetParentPath(propertyPath);
+            if (parentPath.Length == 0) return true;
+
+            return !_rowsByPath.TryGetValue(parentPath, out InspectorRow parent) || parent.IsActive;
         }
     }
 }

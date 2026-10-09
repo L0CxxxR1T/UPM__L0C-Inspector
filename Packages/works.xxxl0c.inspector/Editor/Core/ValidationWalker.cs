@@ -62,8 +62,8 @@ namespace XXXL0C.Inspector.Editor
                 return;
             }
 
-            // コレクションのコンテナ自体ではルールを実行しない。
-            // 要素側が親フィールドの属性を引き継いで評価するため、空リストは何も報告されない
+            // コンテナ自体は Collection、要素は Element としてそれぞれルールを実行する。
+            // 要素単位のルール（[Required] など）は Collection を無視するので、空リストでは何も報告されない
             if (property.isArray && property.propertyType != SerializedPropertyType.String)
             {
                 VisitCollection(property, attributeSource, valueType, state, depth, isInsideExpandedParent);
@@ -108,6 +108,7 @@ namespace XXXL0C.Inspector.Editor
                 // [ShowIf] もここで初めて評価されるので、3層の結果が揃う
                 string childLabel = BuildLabel(child, state);
                 if (!VisibilityEvaluator.IsVisible(child, childField, childLabel, state.Results)) continue;
+                if (!VisibilityEvaluator.IsEnabled(child, childField, childLabel, state.Results)) continue;
 
                 Visit(child, childField, childField.FieldType, state, depth + 1, childrenExpandable, CollectionRole.None);
             }
@@ -121,6 +122,8 @@ namespace XXXL0C.Inspector.Editor
             int depth,
             bool isInsideExpandedParent)
         {
+            RunRules(property, attributeSource, state, isInsideExpandedParent, CollectionRole.Collection, valueType);
+
             Type elementType = SerializedFieldUtility.GetCollectionElementType(valueType);
             if (elementType == null) return;
 
@@ -223,8 +226,13 @@ namespace XXXL0C.Inspector.Editor
                         property, attributeSource, attribute, label, state.Results, role, valueType));
                 }
 
-                // Dictionary のキー・値はコンテナと同じ属性を引き継いでいるだけなので、コンテナ側で1回だけ報告する
-                if (role == CollectionRole.DictionaryKey || role == CollectionRole.DictionaryValue) continue;
+                // 要素はコンテナと同じ属性を引き継いでいるだけなので、コンテナ側で1回だけ報告する
+                if (role == CollectionRole.Element
+                    || role == CollectionRole.DictionaryKey
+                    || role == CollectionRole.DictionaryValue)
+                {
+                    continue;
+                }
 
                 ReportUnsupportedNesting(attributeType, attributeSource, label, state, isInsideExpandedParent);
             }
@@ -242,10 +250,12 @@ namespace XXXL0C.Inspector.Editor
             WalkState state,
             bool isInsideExpandedParent)
         {
-            // 配列要素は起点のフィールドを引き継いでいるだけなので対象外（装飾は親に効いている）
+            // 起点のフィールドの装飾は、そのフィールドの行に効いている
             if (attributeSource == state.RootField) return;
             if (isInsideExpandedParent) return;
-            if (ExtensionRegistry.FindDecorator(attributeType) == null) return;
+
+            IPropertyDecorator decorator = ExtensionRegistry.FindDecorator(attributeType);
+            if (decorator == null || decorator is ISupplementaryDecorator) return;
 
             state.Results.Add(new ValidationMessage(
                 ValidationSeverity.Warning,

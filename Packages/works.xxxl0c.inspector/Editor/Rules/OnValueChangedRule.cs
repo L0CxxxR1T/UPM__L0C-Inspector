@@ -16,6 +16,14 @@ namespace XXXL0C.Inspector.Editor
 
         public void Validate(ValidationContext context)
         {
+            // 要素は配列フィールドの属性を引き継いでいるだけ。持ち主をたどるとコレクション自体になってしまう
+            if (context.Role != CollectionRole.None
+                && context.Role != CollectionRole.Collection
+                && context.Role != CollectionRole.Dictionary)
+            {
+                return;
+            }
+
             OnValueChangedAttribute attribute = (OnValueChangedAttribute)context.Attribute;
 
             object owner = SerializedFieldUtility.ResolveOwnerObject(context.Property);

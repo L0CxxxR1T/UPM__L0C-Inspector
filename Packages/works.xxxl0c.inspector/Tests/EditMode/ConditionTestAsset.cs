@@ -13,6 +13,7 @@ namespace XXXL0C.Inspector.Tests.EditMode
         [SerializeField] private ConditionTestKind _kind;
         [SerializeField] private int _count;
         [SerializeField] private float _ratio;
+        [SerializeField] private double _preciseRatio;
         [SerializeField] private string _label;
         [SerializeField] private Material _material;
         [SerializeField] private Nested _nested;

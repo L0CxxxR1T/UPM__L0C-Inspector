@@ -6,7 +6,7 @@ using UnityEditor;
 namespace XXXL0C.Inspector.Editor
 {
     /// <summary>
-    /// 可視性ルールを評価する。
+    /// 可視性ルールと編集可否ルールを評価する。
     /// </summary>
     /// <remarks>
     /// UI に依存しないのは意図的。インスペクタ・一括チェック・ビルド前フックの3層が同じ判定を通ることで
@@ -24,7 +24,7 @@ namespace XXXL0C.Inspector.Editor
         {
             if (fieldInfo == null) return true;
 
-            return Evaluate(property, fieldInfo, fieldInfo.GetCustomAttributes(false), label, messages);
+            return Evaluate(property, fieldInfo, fieldInfo.GetCustomAttributes(false), label, messages, IsVisibleByRule);
         }
 
         /// <summary>
@@ -36,7 +36,28 @@ namespace XXXL0C.Inspector.Editor
             Attribute[] attributes,
             string label,
             List<ValidationMessage> messages)
-            => Evaluate(property, fieldInfo, attributes, label, messages);
+            => Evaluate(property, fieldInfo, attributes, label, messages, IsVisibleByRule);
+
+        /// <summary>編集できるか。属性をその場で取り出して評価する。走査系（1回きりの呼び出し）向け。</summary>
+        public static bool IsEnabled(
+            SerializedProperty property,
+            FieldInfo fieldInfo,
+            string label,
+            List<ValidationMessage> messages)
+        {
+            if (fieldInfo == null) return true;
+
+            return Evaluate(property, fieldInfo, fieldInfo.GetCustomAttributes(false), label, messages, IsEnabledByRule);
+        }
+
+        /// <summary>編集できるか。構築時にキャッシュした属性で評価する。</summary>
+        public static bool IsEnabled(
+            SerializedProperty property,
+            FieldInfo fieldInfo,
+            Attribute[] attributes,
+            string label,
+            List<ValidationMessage> messages)
+            => Evaluate(property, fieldInfo, attributes, label, messages, IsEnabledByRule);
 
         /// <summary>
         /// ルールの AND。false を返すルールがあっても残りを走らせるのは、誤用の報告を取りこぼさないため。
@@ -46,25 +67,28 @@ namespace XXXL0C.Inspector.Editor
             FieldInfo fieldInfo,
             IEnumerable<object> attributes,
             string label,
-            List<ValidationMessage> messages)
+            List<ValidationMessage> messages,
+            Func<Attribute, VisibilityContext, bool?> evaluateRule)
         {
-            bool visible = true;
+            bool result = true;
 
             foreach (object candidate in attributes)
             {
                 Attribute attribute = candidate as Attribute;
                 if (attribute == null) continue;
 
-                IVisibilityRule rule = ExtensionRegistry.FindVisibilityRule(attribute.GetType());
-                if (rule == null) continue;
-
-                VisibilityContext context =
-                    new VisibilityContext(property, fieldInfo, attribute, label, messages);
-
-                if (!rule.IsVisible(context)) visible = false;
+                VisibilityContext context = new VisibilityContext(property, fieldInfo, attribute, label, messages);
+                if (evaluateRule(attribute, context) == false) result = false;
             }
 
-            return visible;
+            return result;
         }
+
+        /// <summary>担当するルールが無ければ null。</summary>
+        private static bool? IsVisibleByRule(Attribute attribute, VisibilityContext context)
+            => ExtensionRegistry.FindVisibilityRule(attribute.GetType())?.IsVisible(context);
+
+        private static bool? IsEnabledByRule(Attribute attribute, VisibilityContext context)
+            => ExtensionRegistry.FindEnabledRule(attribute.GetType())?.IsEnabled(context);
     }
 }

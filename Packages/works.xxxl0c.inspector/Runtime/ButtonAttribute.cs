@@ -3,9 +3,9 @@ using System;
 namespace XXXL0C.Inspector
 {
     /// <summary>
-    /// 引数なしメソッドをインスペクタ上のボタンとして呼び出せるようにする。
-    /// フィールドではなくメソッドが対象。他の4属性（装飾・可視性・検証・グループ・本体差し替え）とは
-    /// 別軸の仕組みで処理される。
+    /// メソッドをインスペクタ上のボタンとして呼び出せるようにする。
+    /// 対応する引数はインスペクタから入力でき、戻り値があれば結果を表示する。
+    /// static メソッドは1回、instance メソッドは選択中の各オブジェクトで呼び出す。
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     public sealed class ButtonAttribute : Attribute

@@ -11,7 +11,11 @@ namespace XXXL0C.Inspector.Editor
     /// </summary>
     internal sealed class InspectorRow
     {
+        // [EnableIf] などで掛けるロックの持ち主。[ReadOnly] のロックと打ち消し合わないよう別のキーにする
+        private static readonly object _enabledRuleLock = new object();
+
         private readonly List<ValidationMessage> _current = new List<ValidationMessage>();
+        private bool _locked;
 
         public string PropertyPath { get; }
         public FieldInfo FieldInfo { get; }
@@ -33,6 +37,10 @@ namespace XXXL0C.Inspector.Editor
         public VisualElement MessageArea { get; }
 
         public bool IsVisible { get; private set; } = true;
+
+        /// <summary>表示されていて編集でき、親も同様であるか。false なら検証しない。</summary>
+        public bool IsActive { get; private set; } = true;
+
         public int ErrorCount { get; private set; }
         public int WarningCount { get; private set; }
 
@@ -58,6 +66,20 @@ namespace XXXL0C.Inspector.Editor
         {
             IsVisible = visible;
             Root.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        /// <param name="enabled">このフィールド自身のルールによる編集可否。親から引き継いだ分は含めない。</param>
+        /// <param name="active">親も含めて表示・編集できる状態か。</param>
+        public void SetEnabled(bool enabled, bool active)
+        {
+            IsActive = active;
+
+            // 一度もロックしていない行には入力の監視を付けない（ReadOnlyGuard は初回に監視を登録する）
+            if (enabled && !_locked) return;
+
+            // 親が編集不可でも子には掛けない。親の本体がまとめて入力を止めるので、二重に掛けると見た目だけ濃くなる
+            _locked = !enabled;
+            ReadOnlyGuard.SetLocked(Field, _enabledRuleLock, _locked);
         }
 
         /// <summary>前回と同じ内容なら要素を作り直さない。</summary>

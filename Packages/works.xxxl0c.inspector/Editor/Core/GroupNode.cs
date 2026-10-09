@@ -29,6 +29,12 @@ namespace XXXL0C.Inspector.Editor
         /// <summary>ルートノードなら null。</summary>
         public GroupContainer Container { get; }
 
+        /// <summary>ページを持つグループ（タブ群など）の入れ物なら、そのファクトリ。それ以外は null。</summary>
+        public IGroupPageFactory PageFactory { get; }
+
+        /// <summary>ページを持つグループの1ページか。</summary>
+        public bool IsPage { get; }
+
         /// <summary>配下の行や入れ子グループを入れる要素。</summary>
         public VisualElement Content { get; }
 
@@ -40,11 +46,14 @@ namespace XXXL0C.Inspector.Editor
         }
 
         /// <summary>グループノード用。</summary>
-        public GroupNode(string key, GroupContainer container, Type factoryType)
+        public GroupNode(
+            string key, GroupContainer container, Type factoryType, IGroupPageFactory pageFactory, bool isPage)
         {
             Key = key;
             Container = container;
             FactoryType = factoryType;
+            PageFactory = pageFactory;
+            IsPage = isPage;
             Content = container.Content;
 
             _badge = new Label();
@@ -97,8 +106,7 @@ namespace XXXL0C.Inspector.Editor
                 ApplyBadge(errors, warnings);
 
                 // 子が全て非表示かつ常時表示コンテンツも無いグループだけを隠す
-                Container.Root.style.display =
-                    visibleRows > 0 || hasStaticContent ? DisplayStyle.Flex : DisplayStyle.None;
+                Container.SetVisible(visibleRows > 0 || hasStaticContent);
             }
 
             return new Result(errors, warnings, visibleRows, hasStaticContent);

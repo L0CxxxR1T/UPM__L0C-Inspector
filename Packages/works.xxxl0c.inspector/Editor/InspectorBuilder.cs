@@ -68,7 +68,8 @@ namespace XXXL0C.Inspector.Editor
             BuildFields(CollectTopLevel(serializedObject), targetType, rootNode, groupTree, session, 0);
             ButtonSectionBuilder.Build(serializedObject, targetType, rootNode, groupTree);
 
-            session.Refresh();
+            // [HideInPlayMode] などは値が変わらなくても Play Mode の切り替えで結果が変わるので、そこでも更新する
+            PlayModeTracking.Track(root, session.Refresh);
             root.TrackSerializedObjectValue(serializedObject, _ => session.Refresh());
 
             return root;

@@ -20,6 +20,10 @@ namespace XXXL0C.Inspector.Editor
 
             switch (context.Role)
             {
+                case CollectionRole.Collection:
+                    // 配列・List は要素側で判定する。空であることは [NotEmpty] の担当
+                    return;
+
                 case CollectionRole.Dictionary:
                     // 効果の有無はキーと値の型の組み合わせで決まるので、コンテナで1回だけ判定する
                     if (!DictionaryUtility.CanContainNull(context.ValueType))

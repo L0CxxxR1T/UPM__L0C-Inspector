@@ -32,17 +32,17 @@ namespace XXXL0C.Inspector.Editor
                 return FieldFactoryResult.Accept(field, null);
             }
 
-            if (property.propertyType != SerializedPropertyType.ManagedReference)
+            bool isCollection = elementType != fieldType;
+            if (!isCollection && property.propertyType != SerializedPropertyType.ManagedReference)
             {
                 return FieldFactoryResult.Decline(
-                    "[TypeFilter] は [SerializeReference] を付けた単体のフィールドか、SerializableType にのみ使えます"
-                    + "（[SerializeReference] の配列・List の要素には未対応です）。");
+                    "[TypeFilter] は [SerializeReference] を付けたフィールドか、SerializableType にのみ使えます。");
             }
 
             TypeFilterAttribute attribute = (TypeFilterAttribute)context.Attribute;
-            Type baseType = attribute.BaseType ?? fieldType;
+            Type baseType = attribute.BaseType ?? elementType;
 
-            List<Type> candidates = TypeCandidates.ForManagedReference(fieldType, baseType);
+            List<Type> candidates = TypeCandidates.ForManagedReference(elementType, baseType);
             if (candidates.Count == 0)
             {
                 return FieldFactoryResult.Decline(
@@ -54,10 +54,78 @@ namespace XXXL0C.Inspector.Editor
 
             SerializedObject serializedObject = property.serializedObject;
             string propertyPath = property.propertyPath;
+            if (isCollection)
+            {
+                return FieldFactoryResult.Accept(
+                    CreateManagedReferenceList(property, propertyPath, serializedObject, candidates, choices), null);
+            }
 
+            VisualElement root = CreateManagedReferenceField(
+                property, propertyPath, serializedObject, candidates, choices, property.displayName);
+            DropdownField dropdown = root.Q<DropdownField>();
+            return FieldFactoryResult.Accept(root, dropdown.labelElement);
+        }
+
+        private static ListView CreateManagedReferenceList(
+            SerializedProperty property,
+            string propertyPath,
+            SerializedObject serializedObject,
+            List<Type> candidates,
+            List<string> choices)
+        {
+            ListView listView = new ListView
+            {
+                showFoldoutHeader = true,
+                showAddRemoveFooter = true,
+                reorderable = true,
+                virtualizationMethod = CollectionVirtualizationMethod.DynamicHeight,
+                headerTitle = property.displayName,
+                makeItem = () => new VisualElement()
+            };
+            listView.AddToClassList(InspectorClassNames.TYPE_FILTER_LIST);
+
+            listView.bindItem = (element, index) =>
+            {
+                element.Clear();
+                SerializedProperty array = serializedObject.FindProperty(propertyPath);
+                if (array == null || index >= array.arraySize) return;
+
+                SerializedProperty item = array.GetArrayElementAtIndex(index);
+                if (item.propertyType != SerializedPropertyType.ManagedReference) return;
+
+                string itemPath = item.propertyPath;
+                element.Add(CreateManagedReferenceField(
+                    item, itemPath, serializedObject, candidates, choices, string.Empty));
+            };
+
+            listView.onAdd = sourceListView =>
+            {
+                SerializedProperty array = serializedObject.FindProperty(propertyPath);
+                if (array == null) return;
+
+                int index = array.arraySize;
+                array.arraySize++;
+                array.GetArrayElementAtIndex(index).managedReferenceValue = null;
+                serializedObject.ApplyModifiedProperties();
+                serializedObject.Update();
+                sourceListView.RefreshItems();
+            };
+
+            listView.BindProperty(property);
+            return listView;
+        }
+
+        private static VisualElement CreateManagedReferenceField(
+            SerializedProperty property,
+            string propertyPath,
+            SerializedObject serializedObject,
+            List<Type> candidates,
+            List<string> choices,
+            string label)
+        {
             VisualElement root = new VisualElement();
-            DropdownField dropdown = new DropdownField(property.displayName, choices, 0);
-            dropdown.AddToClassList(BaseField<string>.alignedFieldUssClassName);
+            DropdownField dropdown = new DropdownField(label, choices, 0);
+            if (!string.IsNullOrEmpty(label)) dropdown.AddToClassList(BaseField<string>.alignedFieldUssClassName);
             VisualElement content = new VisualElement();
             content.AddToClassList(InspectorClassNames.TYPE_FILTER_CONTENT);
             root.Add(dropdown);
@@ -91,8 +159,7 @@ namespace XXXL0C.Inspector.Editor
 
             root.TrackPropertyValue(property, Sync);
             Sync(property);
-
-            return FieldFactoryResult.Accept(root, dropdown.labelElement);
+            return root;
         }
 
         /// <summary>選択中の全オブジェクトに、それぞれ新しいインスタンスを入れる（同じインスタンスを共有させない）。</summary>
