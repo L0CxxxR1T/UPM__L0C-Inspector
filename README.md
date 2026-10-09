@@ -1,4 +1,4 @@
-# \[ L0C\_\_Basics \]
+# \[ L0C\_Basics: Inspector \]
 
 ![最新版](https://img.shields.io/badge/ver-1.0.0-1458b8?style=flat-square&labelColor=black)
 

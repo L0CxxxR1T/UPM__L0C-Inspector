@@ -1,4 +1,4 @@
-# L0C__Inspector
+# L0C\_Basics: Inspector
 
 属性ベースのインスペクタ拡張。Unity 6.3 以降 / UI Toolkit。
 
