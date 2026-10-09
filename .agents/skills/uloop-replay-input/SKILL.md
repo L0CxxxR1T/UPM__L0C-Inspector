@@ -8,31 +8,33 @@ description: "Replay recorded PlayMode keyboard and mouse input. Use for exact g
 
 Replay recorded keyboard and mouse input during PlayMode. Loads a JSON recording and injects input frame-by-frame via Input System with zero CLI overhead. Supports looping and progress monitoring.
 
+Create recording JSON files in the Unity Editor from **Window > Unity CLI Loop > Recordings** with **Start Recording** and **Stop Recording**. There is no CLI command for recording input.
+
 ## Usage
 
 ```bash
 # Start replay (auto-detect latest recording)
-uloop replay-input --action Start
+uloop replay-input --action start
 
 # Start replay with specific file
-uloop replay-input --action Start --input-path scripts/my-play.json
+uloop replay-input --action start --input-path scripts/my-play.json
 
 # Start replay with looping
-uloop replay-input --action Start --loop
+uloop replay-input --action start --loop
 
 # Check replay progress
-uloop replay-input --action Status
+uloop replay-input --action status
 
 # Stop replay
-uloop replay-input --action Stop
+uloop replay-input --action stop
 ```
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `--action` | enum | `Start` | `Start`, `Stop`, `Status` |
-| `--input-path` | string | auto | JSON path. Auto-detects latest in `.uloop/outputs/InputRecordings/` |
+| `--action` | enum | `start` | `start` - begin replaying, `stop` - stop mid-way, `status` - check progress |
+| `--input-path` | string | auto | Path to the recording JSON. When empty, auto-detects the latest recording in `.uloop/outputs/InputRecordings/` |
 | `--no-show-overlay` | flag | - | Hide replay progress overlay |
 | `--loop` | flag | - | Loop continuously |
 
@@ -51,8 +53,8 @@ Returns JSON with:
 
 - `Success`: Whether the operation succeeded
 - `Message`: Status message
-- `Action`: Echoes which action was executed (`Start`, `Stop`, or `Status`)
-- `InputPath`: Path to recording file (nullable string; populated on `Start` only)
+- `Action`: Echoes which action was executed (`start`, `stop`, or `status`)
+- `InputPath`: Path to recording file (nullable string; populated on `start` only)
 - `CurrentFrame`: Current replay frame index (nullable int)
 - `TotalFrames`: Total frames in the recording (nullable int)
 - `Progress`: Replay progress (nullable float in 0.0 – 1.0)

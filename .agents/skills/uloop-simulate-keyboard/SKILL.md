@@ -1,7 +1,7 @@
 ---
 name: uloop-simulate-keyboard
 toolName: simulate-keyboard
-description: "Simulate keyboard input in PlayMode through Unity Input System. Use for key presses, holds, releases, and game controls such as WASD or Space."
+description: "Simulate keyboard input in PlayMode through Unity Input System. Use for key presses, holds (via Press --duration or KeyDown/KeyUp), releases, and game controls such as WASD or Space. Requires the Input System package (com.unity.inputsystem)."
 ---
 
 # Task
@@ -27,9 +27,9 @@ uloop simulate-keyboard --action ReleaseAll
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `--action` | enum | `Press` | `Press`, `KeyDown`, `KeyUp`, `ReleaseAll` |
+| `--action` | enum | `Press` | `Press` - one-shot key tap (Down then Up), `KeyDown` - hold key down, `KeyUp` - release held key, `ReleaseAll` - force-release every tracked and device-pressed key (allowed while PlayMode is paused; use after a pause-point interruption leaves key state inconsistent) |
 | `--key` | string | (required except `ReleaseAll`) | Key name matching Input System Key enum (e.g. `W`, `Space`, `LeftShift`, `A`, `Enter`). Case-insensitive. Digit keys use `Digit0`-`Digit9` or `Numpad0`-`Numpad9`, not bare `0`-`9`. Not used by `ReleaseAll`. |
-| `--duration` | number | `0` | Hold duration in seconds for Press action (0 = one-shot tap). Ignored by KeyDown/KeyUp/ReleaseAll. |
+| `--duration` | number | `0` | Hold duration in seconds for Press action (0 = one-shot tap, max 30). Ignored by KeyDown/KeyUp/ReleaseAll. |
 
 ### Actions
 
@@ -38,7 +38,7 @@ uloop simulate-keyboard --action ReleaseAll
 | `Press` | KeyDown → wait → KeyUp | One-shot tap (jump, use item) |
 | `KeyDown` | KeyDown only (held until KeyUp) | Start continuous movement, hold sprint |
 | `KeyUp` | KeyUp only (release held key) | Stop movement, release sprint |
-| `ReleaseAll` | Force-releases every tracked and device-pressed key (bookkeeping and Input System device state) | Recover a clean keyboard state after a pause-point interruption |
+| `ReleaseAll` | Injects a release for every tracked and device-pressed key and resets the hold tracker; confirm the device via `ReleasedKeyStates` | Recover a clean keyboard state after a pause-point interruption |
 
 There is no separate hold action: to hold a key, use `Press --duration <seconds>` (fixed-time hold) or `KeyDown` followed later by `KeyUp` (open-ended hold).
 
@@ -46,11 +46,11 @@ Use `Press` for edge-triggered keyboard code such as `Keyboard.current.spaceKey.
 `KeyDown` emits one initial press edge, then only keeps the key held. It does not keep `wasPressedThisFrame` true while the key remains held.
 If a successful `Press` or `KeyDown` leaves `Keyboard.current.<key>.isPressed` true but runtime state does not change, do not immediately rewrite the user's runtime code to `isPressed`. First verify that the target component is active during the command, that it polls input in the configured Input System update phase, and that a missed `KeyDown` edge is followed by `KeyUp` before retrying.
 
-`ReleaseAll` is a recovery action, not part of normal gameplay simulation: after a pause-point interruption, bookkeeping and the Input System device can disagree, or a stale press latch can keep `isPressed` true after resume. `ReleaseAll` forces both back to a clean slate; it works while Unity is still paused and does not clear pause-point captures. For ordinary releases during gameplay simulation, keep using `KeyUp`.
+`ReleaseAll` is a recovery action, not part of normal gameplay simulation: after a pause-point interruption, bookkeeping and the Input System device can disagree, or a stale press latch can keep `isPressed` true after resume. `ReleaseAll` resets the tracker and injects a release for every such key; it works while Unity is still paused and does not clear pause-point captures. `Success: true` alone is not proof the device is clean: read `ReleasedKeyStates` in the response, and for any entry with `DeviceIsPressedAfterRelease: true` resume PlayMode (the deferred latch sync runs on the next gameplay input update) and re-check with `pause-point-status`, a log, or `Keyboard.current.<key>.isPressed` via `execute-dynamic-code` before sending the next key. For ordinary releases during gameplay simulation, keep using `KeyUp`.
 
 ### Pause Point Inspection (Standard for E2E)
 
-For standard frame proof when this input drives a state transition, follow the `uloop-pause-point` skill — it covers line placement and interruption semantics. Tool-specific note: if `InterruptedByPausePoint: true`, Unity is paused and input bookkeeping was safely released; `PressEdgeObserved` is still reported on pause-point interruptions. Interruption detection covers the whole press lifetime: a pause landing while `Press` is holding the key (during the duration wait) also returns promptly with `InterruptedByPausePoint: true`, and the pause takes precedence even when the requested duration had already elapsed — treat such a response as the pause reporting in, not as a delivery failure. Clear inspection-only pause points (`uloop clear-pause-point --all`) before final validation. If a later key action still reports inconsistent state after an interruption, recover with `--action ReleaseAll` instead of retrying `KeyUp`.
+For standard frame proof when this input drives a state transition, follow the `uloop-pause-point` skill — it covers line placement and interruption semantics. Tool-specific note: if `InterruptedByPausePoint: true`, Unity is paused; for `Press`/`KeyDown` read `PressDeliveredToGame` before retrying (`null` on `KeyUp`). `PressDeliveredToGame` means the press was applied to the Input System; `PressEdgeObserved` says whether a gameplay update saw the press edge and can still be `false` after apply. Interruption detection covers the whole press lifetime: a pause landing while `Press` is holding the key (during the duration wait) also returns promptly with `InterruptedByPausePoint: true`, and the pause takes precedence even when the requested duration had already elapsed — treat such a response as the pause reporting in, not as a delivery failure. Clear inspection-only pause points (`uloop clear-pause-point --all`) before final validation. If a later key action still reports inconsistent state after an interruption, recover with `--action ReleaseAll` instead of retrying `KeyUp`.
 
 ### KeyDown/KeyUp Rules
 
@@ -85,22 +85,16 @@ uloop simulate-keyboard --action ReleaseAll
 
 ## Output
 
-Returns JSON with:
-
-- `Success` (boolean): Whether the action succeeded (e.g. `KeyDown` on a not-yet-held key, `KeyUp` on a currently-held key, or `Press` round-trip)
-- `Message` (string): Description of what happened or why it failed
-- `Action` (string): The `--action` value that was applied (`Press`, `KeyDown`, `KeyUp`, or `ReleaseAll`)
-- `KeyName` (string, nullable): The key that was acted on; may be `null` when the action could not resolve a key
-- `ReleasedKeys` (string list, nullable): Set only for `ReleaseAll`; the key names that were force-released (empty when nothing was held)
-- `InterruptedByPausePoint` / `PausePointId` / `PausePointHitCount` / `PausePointHits`: Pause-point interruption info (all nullable except the boolean). `PausePointHits` lists every marker hit during this input in hit order; `PausePointId` only names the latest one. See the Pause Point Inspection section above
-- `PressEdgeObserved` (boolean, nullable): For `Press` and `KeyDown`, whether the press edge (`wasPressedThisFrame`) was visible inside a gameplay input update. `false` means the CLI succeeded but gameplay polling most likely missed the edge — verify with a focused log instead of trusting `Success` alone. `null` only for `KeyUp` and timed-out responses; pause-point interruptions still report the observed value. When a single-shot pause point is armed, do not blindly retry on `false`: the input may still have registered late, so check `pause-point-status` for a hit first — a blind retry can consume a re-enabled marker or double-fire the scenario
-- `PressEdgeConsumedByUpdateType` / `PressEdgeAnyDynamicUpdateObserved` / `PressEdgeKeyAlreadyPressedBeforeQueue` (nullable): Diagnostics populated only when `PressEdgeObserved` is `false` (all `null` when the edge was observed). `Message` carries the same diagnosis as text. Read them before retrying:
-
-| Diagnostic | Meaning | Next action |
-|---|---|---|
-| `PressEdgeKeyAlreadyPressedBeforeQueue=true` | The key was already held; no press transition could occur | Release with `KeyUp`, then press again |
-| `PressEdgeConsumedByUpdateType` names a non-`Dynamic` update type (e.g. `Editor`) | An editor-side update consumed the edge before gameplay polling saw it | Retry: rerun `Press` directly; for `KeyDown` the key is now held, so `KeyUp` first (a held key rejects a second `KeyDown`) |
-| `PressEdgeAnyDynamicUpdateObserved=false` | No gameplay input update ran during the press window | Check that PlayMode is running and unpaused; do not retry blindly |
+The response reports `Success`, `Message`, `Action`, and `KeyName`, plus the fields that
+gate how to read a run: `PressDeliveredToGame` (on pause-point interruptions of `Press` /
+`KeyDown` — read it before retrying), `PressEdgeObserved` (`false` means gameplay polling
+most likely missed the edge — read the `PressEdge*` diagnostics before retrying, and check
+`pause-point-status` first when a single-shot marker is armed), `Warning` (set when the
+press edge was missed while the Unity Editor is unfocused — run `uloop focus-window`
+before retrying), `InterruptedByPausePoint`/`PausePointHits`, and the `ReleaseAll` /
+key-state readback fields. Field-by-field semantics and the `PressEdge*` diagnostics
+table are in `references/output.md` beside this skill — read it before retrying any
+input whose response looks inconsistent.
 
 ## Prerequisites
 

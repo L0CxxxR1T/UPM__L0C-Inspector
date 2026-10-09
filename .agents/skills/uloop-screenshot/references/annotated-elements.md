@@ -1,24 +1,33 @@
 # Annotated Elements and Coordinates
 
-Read this when using `uloop screenshot --capture-mode rendering --annotate-elements true` or `--annotate-raycast-grid true` output to find coordinates for `simulate-mouse-ui`, `simulate-mouse-input`, or `raycast`.
+Read this when using `uloop screenshot --capture-mode rendering --annotate-elements` or `--annotate-raycast-grid` output to find coordinates for `simulate-mouse-ui` or `simulate-mouse-input` (including `--dry-run`).
 
 Device Simulator is supported for this flow: prefer `--capture-mode rendering` (not `window`) so coordinates match the simulated device resolution.
 
 ## AnnotatedElements Fields
 
-`AnnotatedElements` is empty unless `--annotate-elements true` is used, or unless `--annotate-raycast-grid true` adds clustered 3D collider candidates (with or without `--raycast-layer-mask`). UI entries are sorted by z-order, frontmost first. Each item contains:
+`AnnotatedElements` is empty unless `--annotate-elements` is used, or unless `--annotate-raycast-grid` adds clustered 3D collider candidates (with or without `--raycast-layer-mask`). UI entries are sorted by z-order, frontmost first. That sort uses `SortingOrder` then `SiblingIndex`, so parent-crossing overlaps can disagree with the actual draw order — see `SiblingIndex` below. Each item contains:
 
-- `Label`: Index label in JSON (`A` = frontmost, `B` = next, ...). Screenshot labels also include the interaction hint, such as `A / CLICK` or `B / DRAG`.
+- `Label`: Index label in JSON (`A` = first in that sort, `B` = next, ...). Treat it as a stable handle, not as proof of what is actually in front: when overlapping elements cross parents, pick the target by `Path` and confirm the result with `simulate-mouse-ui`'s `HitGameObjectName` — the handler that received the events, resolved up the hierarchy from the raycast hit (or from `--target-path` in bypass mode), so it can name an ancestor of the element you clicked. Screenshot labels also include the interaction hint, such as `A / CLICK` or `B / DRAG`.
 - `Name`: Element name
 - `Path`: Hierarchy path from the scene root, for example `Canvas/Panel/Button`. Use this as `simulate-mouse-ui --target-path` when bypassing raycast blockers.
 - `Type`: Element type (`Button`, `Toggle`, `Slider`, `Dropdown`, `InputField`, `Scrollbar`, `Draggable`, `DropTarget`, `Selectable`, `PhysicsCollider`)
-- `Interaction`: Derived interaction category (`Click`, `Drag`, `Drop`, `Text`) or `Raycast` for clustered physics collider entries. Use this to choose between `simulate-mouse-ui --action Click`, drag actions, or `simulate-mouse-input`/`raycast`.
+- `Interaction`: Derived interaction category (`Click`, `Drag`, `Drop`, `Text`) or `Raycast` for clustered physics collider entries. Use this to choose between `simulate-mouse-ui --action Click`, drag actions, or `simulate-mouse-input` (including `--dry-run`).
 - `Layer`: Physics layer name for `PhysicsCollider` entries. Empty for UI entries.
 - `Components`: Collider and MonoBehaviour component type names from the hit GameObject for `PhysicsCollider` entries. Empty for UI entries.
-- `SimX`, `SimY`: Target click position in top-left Game View coordinates. For UI entries this is the element center; for `PhysicsCollider` entries this is a representative sampled hit. Use these directly with `simulate-mouse-ui --x/--y`, `simulate-mouse-input --x/--y`, or `raycast --x/--y`.
+- `SimX`, `SimY`: Target click position in top-left Game View coordinates. For UI entries this is the element center when that center is raycast-reachable; otherwise it is a reachable probe point inside the bounds (center, then four interior quarter points). For `PhysicsCollider` entries this is a representative sampled hit. Use these directly with `simulate-mouse-ui --x/--y` or `simulate-mouse-input --x/--y` (`--dry-run` optional).
 - `BoundsMinX`, `BoundsMinY`, `BoundsMaxX`, `BoundsMaxY`: Bounding box in the same coordinates as `SimX/SimY`. For `PhysicsCollider` entries, this is the axis-aligned sampled-cell coverage box from reachable raycast hits, not a guarantee that every interior point is clickable.
 - `SortingOrder`: Canvas sorting order. Higher values are in front.
-- `SiblingIndex`: Transform sibling index under the element's direct parent. Do not use it as a reliable z-order signal across nested UI hierarchies.
+- `SiblingIndex`: Transform sibling index under the element's direct parent. Do not use it as a reliable z-order signal across nested UI hierarchies; the frontmost-first sort above can then disagree with draw order.
+
+## Exclusion rules (by design)
+
+The annotator lists elements that share the same EventSystem raycast path as `simulate-mouse-ui`. The following are omitted on purpose:
+
+- Elements under a Canvas that has no enabled `GraphicRaycaster` are not clickable through EventSystem, so they are not listed.
+- Elements on a World Space or Camera Space Canvas whose camera cannot be resolved from `worldCamera`, the root canvas, or `Camera.main` have no screen coordinates, so they are not listed.
+- Elements whose center and four interior quarter probe points are all covered by another raycast hit are not listed.
+- Selectables that are not interactable (`interactable = false`, or a parent `CanvasGroup` with `interactable = false`) ignore clicks and drags, so they are not listed. A separate pointer handler script on the same GameObject is still listed as that handler.
 
 ### PhysicsCollider Entries Per Closed Region
 
@@ -28,7 +37,7 @@ When multiple entries share the same `Path`, use `SimX`/`SimY` (or the label pos
 
 ## RaycastLayerSummaries Fields
 
-`RaycastLayerSummaries` is always populated when `--annotate-raycast-grid true` is used, regardless of `--raycast-layer-mask`. It is built from a dense 40x40 raycast sample pass over `Physics.DefaultRaycastLayers` (fixed, independent of `--raycast-layer-mask`), so it always tells you what else is hittable across every default-visible layer, even when you narrowed `AnnotatedElements` down to one layer with `--raycast-layer-mask`.
+`RaycastLayerSummaries` is always populated when `--annotate-raycast-grid` is used, regardless of `--raycast-layer-mask`. It is built from a dense 40x40 raycast sample pass over `Physics.DefaultRaycastLayers` (fixed, independent of `--raycast-layer-mask`), so it always tells you what else is hittable across every default-visible layer, even when you narrowed `AnnotatedElements` down to one layer with `--raycast-layer-mask`.
 
 - `Layer`: Physics layer name to pass to `--raycast-layer-mask`
 - `LayerIndex`: Unity physics layer index
@@ -39,7 +48,7 @@ Entries are sorted by `HitCount` descending, then `LayerIndex` ascending.
 
 ## RaycastLayerNamesChecked Fields
 
-`RaycastLayerNamesChecked` is populated when `--annotate-raycast-grid true` is used. It lists the physics layer names that were actually eligible to produce `AnnotatedElements` `PhysicsCollider` entries in this response: the clustering mask (`--raycast-layer-mask` if set, otherwise `Physics.DefaultRaycastLayers`) intersected with `Camera.main.cullingMask`. Use it to diagnose why an expected layer produced no `PhysicsCollider` entries — if the layer name is missing here, the active camera cannot see it this frame regardless of `--raycast-layer-mask`.
+`RaycastLayerNamesChecked` is populated when `--annotate-raycast-grid` is used. It lists the physics layer names that were actually eligible to produce `AnnotatedElements` `PhysicsCollider` entries in this response: the clustering mask (`--raycast-layer-mask` if set, otherwise `Physics.DefaultRaycastLayers`) intersected with `Camera.main.cullingMask`. Use it to diagnose why an expected layer produced no `PhysicsCollider` entries — if the layer name is missing here, the active camera cannot see it this frame regardless of `--raycast-layer-mask`.
 
 This is a different mask than `RaycastLayerSummaries`, which always reports against the fixed `Physics.DefaultRaycastLayers` set. `RaycastLayerNamesChecked` tracks what was actually clustered; `RaycastLayerSummaries` is a constant discovery aid for "what else could I filter to next."
 
@@ -62,7 +71,7 @@ For clustered `PhysicsCollider` entries, points where the frontmost EventSystem 
 
 `PhysicsCollider` bounds expand each reachable sample by half the dense raycast sampling step in X and Y, then clamp the result to the captured Game View area. The screenshot overlay draws only the outer edges of those reachable sample cells, so angled, L-shaped, separated, and partially UI-covered hit regions do not become one large rectangle. `BoundsMinX/Y` and `BoundsMaxX/Y` are still an axis-aligned bbox for JSON consumers, may extend up to half a sample step past the visible collider edge, and do not guarantee that every interior point is clickable.
 
-`simulate-mouse-input` and `raycast` convert internally to Unity Input System coordinates:
+`simulate-mouse-input` (including `--dry-run`) converts internally to Unity Input System coordinates:
 
 ```text
 unity_x = input_x

@@ -12,7 +12,7 @@ Simulate mouse interaction on Unity PlayMode UI.
 
 1. Ensure Unity is in PlayMode (use `uloop control-play-mode --action Play` if not)
 2. Get UI element info: `uloop screenshot --capture-mode rendering --annotate-elements --elements-only`
-3. Use the `AnnotatedElements` array to find the target element by `Label`, `Name`, or `Path` (A=frontmost, B=next, ...). Use `Interaction` to distinguish click targets from drag/drop/text targets, then use `SimX`/`SimY` directly as `--x`/`--y` coordinates.
+3. Use the `AnnotatedElements` array to find the target element by `Path` or `Name` (labels are ordered by `SortingOrder`/`SiblingIndex`, which can differ from the real draw order, so do not choose a target by `A`, `B`, ... alone). Use `Interaction` to distinguish click targets from drag/drop/text targets, then use `SimX`/`SimY` directly as `--x`/`--y` coordinates.
 4. Execute the needed `uloop simulate-mouse-ui` commands
 5. Inspect the result with the lightest useful evidence: runtime state, logs, or a screenshot
 6. When this UI input verifies a state transition, use Pause Point inspection from the section below as the standard frame proof
@@ -28,13 +28,13 @@ uloop simulate-mouse-ui --action <action> --x <x> --y <y> [options]
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `--action` | enum | `Click` | `Click`, `Drag`, `DragStart`, `DragMove`, `DragEnd`, `LongPress` |
+| `--action` | enum | `Click` | `Click` - click at position, `Drag` - one-shot drag, `DragStart` - begin drag and hold, `DragMove` - move while holding drag, `DragEnd` - release drag, `LongPress` - press and hold for `--duration` seconds |
 | `--x` | number | `0` | Target X position in screen pixels (origin: top-left). For Drag action, this is the destination. |
 | `--y` | number | `0` | Target Y position in screen pixels (origin: top-left). For Drag action, this is the destination. |
-| `--from-x` | number | `0` | Start X position for Drag action. Drag starts here and moves to x,y. |
-| `--from-y` | number | `0` | Start Y position for Drag action. Drag starts here and moves to x,y. |
+| `--from-x` | number | `0` | Start X position for Drag action (origin: top-left). Drag starts here and moves to `--x`,`--y`. |
+| `--from-y` | number | `0` | Start Y position for Drag action (origin: top-left). Drag starts here and moves to `--x`,`--y`. |
 | `--drag-speed` | number | `2000` | Drag speed in pixels per second (0 for instant). 2000 is fast (default), 200 is slow enough to watch. Applies to Drag, DragMove, and DragEnd actions. |
-| `--duration` | number | `0.5` | Hold duration in seconds for LongPress action. |
+| `--duration` | number | `0.5` | Hold duration in seconds for LongPress action (max 30). |
 | `--button` | enum | `Left` | Mouse button. `Click` and `LongPress` support `Left`, `Right`, and `Middle`. Drag actions support `Left` only; other buttons return an error. |
 | `--bypass-raycast` | flag | - | For `Click`, `LongPress`, `Drag`, and `DragStart`, bypass EventSystem raycast and dispatch pointer events directly to `--target-path`. Use when a raycast-blocking overlay visually covers the intended target. |
 | `--target-path` | string | `""` | Hierarchy path of the target GameObject, for example `Canvas/Panel/Button`. Required when `--bypass-raycast` is used with `Click`, `LongPress`, `Drag`, or `DragStart`; prefer `AnnotatedElements[].Path` from screenshot JSON. |
@@ -107,18 +107,10 @@ uloop simulate-mouse-ui --action DragEnd --x 600 --y 300
 
 ## Output
 
-Returns JSON with:
-
-- `Success`: Whether the operation succeeded
-- `Message`: Status message (e.g. "Hit element: ButtonStart" or "No UI element under (x, y)")
-- `Action`: Echoes which action was executed (`Click`, `Drag`, `DragStart`, `DragMove`, `DragEnd`, or `LongPress`)
-- `HitGameObjectName`: Name of the topmost UI element under the pointer (nullable string; null if nothing was hit)
-- `PositionX`: Target X coordinate that was used
-- `PositionY`: Target Y coordinate that was used
-- `EndPositionX`: Drag end X coordinate (nullable float; populated for drag actions only)
-- `EndPositionY`: Drag end Y coordinate (nullable float; populated for drag actions only)
-- `InterruptedByPausePoint` / `PausePointId` / `PausePointHitCount` / `PausePointHits`: Pause-point interruption info (all nullable except the boolean). `PausePointHits` lists every marker hit during this input in hit order; `PausePointId` only names the latest one. See the Pause Point Inspection section above
-
-Verify the visual outcome with a follow-up `uloop screenshot --capture-mode rendering --annotate-elements`.
-
-Note: Click and LongPress on empty space (no UI element) still return `Success = true` with `HitGameObjectName = null`. Drag actions on empty space return `Success = false`.
+The response reports `Success`, `Message`, `Action`, `HitGameObjectName`, the used
+coordinates, and `InterruptedByPausePoint`/`PausePointHits`. Two readings that matter:
+`Click`/`LongPress` on empty space still return `Success = true` with
+`HitGameObjectName = null` (drag actions on empty space fail), and on a pause-point
+interruption `Message` states whether the pointer event fired before the pause.
+Field-by-field semantics are in `references/output.md`. Verify the visual outcome with a
+follow-up `uloop screenshot --capture-mode rendering --annotate-elements`.
