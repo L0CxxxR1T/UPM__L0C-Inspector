@@ -60,7 +60,7 @@ namespace XXXL0C.Inspector.Editor
                 {
                     if (component == null) continue; // Missing Script
 
-                    ObjectValidator.Validate(component, path, BuildHierarchyPath(component.transform), issues);
+                    ObjectValidator.ValidateExceptSource(component, path, BuildHierarchyPath(component.transform), issues);
                 }
             }
 
@@ -117,7 +117,7 @@ namespace XXXL0C.Inspector.Editor
                         {
                             if (component == null) continue;
 
-                            ObjectValidator.Validate(component, path, BuildHierarchyPath(component.transform), issues);
+                            ObjectValidator.ValidateExceptSource(component, path, BuildHierarchyPath(component.transform), issues);
                         }
                     }
                 }

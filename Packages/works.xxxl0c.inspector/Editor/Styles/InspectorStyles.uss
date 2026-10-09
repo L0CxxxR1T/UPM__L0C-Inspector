@@ -100,6 +100,19 @@
     -unity-text-align: middle-left;
 }
 
+/* ---- SteppedMinMaxSlider の左右の数値欄 ---- */
+
+.l0c-inspector__min-max-value {
+    width: 48px;
+    flex-shrink: 0;
+}
+
+/* ---- ReadOnly（入力を止めるだけなので、無効化の見た目は自前で付ける） ---- */
+
+.l0c-inspector__read-only {
+    opacity: 0.5;
+}
+
 /* ---- InlineEditor ---- */
 
 .l0c-inspector__inline-editor {
@@ -108,6 +121,34 @@
     padding-left: 6px;
     border-left-width: 2px;
     border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+.l0c-inspector__inline-editor-notice {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+/* ---- Optional<T>（値の欄の右にチェックボックス） ---- */
+
+.l0c-inspector__optional {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.l0c-inspector__optional-value {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.l0c-inspector__optional-toggle {
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+
+/* ---- TypeFilter ---- */
+
+.l0c-inspector__type-filter-content {
+    margin-left: 15px;
 }
 
 /* ---- Button ---- */

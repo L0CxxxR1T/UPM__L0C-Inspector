@@ -1,0 +1,25 @@
+{
+    "name": "XXXL0C.Inspector.Tests.EditMode",
+    "rootNamespace": "XXXL0C.Inspector.Tests",
+    "references": [
+        "XXXL0C.Inspector",
+        "XXXL0C.Inspector.Editor",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

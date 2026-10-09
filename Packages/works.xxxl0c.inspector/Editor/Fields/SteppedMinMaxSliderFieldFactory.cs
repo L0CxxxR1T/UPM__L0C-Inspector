@@ -8,7 +8,7 @@ namespace XXXL0C.Inspector.Editor
 {
     /// <summary>
     /// [SteppedMinMaxSlider] のフィールドファクトリ。min / max フィールドを持つ値を
-    /// MinMaxSlider + 左右の FloatField で表示する。
+    /// MinMaxSlider + 左右の数値欄で表示する。min / max は float 同士か int 同士に対応する。
     /// </summary>
     public sealed class SteppedMinMaxSliderFieldFactory : IFieldFactory
     {
@@ -27,83 +27,127 @@ namespace XXXL0C.Inspector.Editor
                     "[SteppedMinMaxSlider] は _min / _max（または min / max）フィールドを持つ型にのみ使えます。");
             }
 
-            if (minProperty.propertyType != SerializedPropertyType.Float
-                || maxProperty.propertyType != SerializedPropertyType.Float)
+            bool isInteger = minProperty.propertyType == SerializedPropertyType.Integer;
+            bool isNumeric = isInteger || minProperty.propertyType == SerializedPropertyType.Float;
+            if (!isNumeric || minProperty.propertyType != maxProperty.propertyType)
             {
-                return FieldFactoryResult.Decline("[SteppedMinMaxSlider] の min / max は float 型である必要があります。");
+                return FieldFactoryResult.Decline(
+                    "[SteppedMinMaxSlider] の min / max は float 同士か int 同士である必要があります。");
             }
 
             SteppedMinMaxSliderAttribute attribute = (SteppedMinMaxSliderAttribute)context.Attribute;
+            string minPath = minProperty.propertyPath;
+            string maxPath = maxProperty.propertyPath;
 
-            VisualElement container = new VisualElement();
-            container.style.flexDirection = FlexDirection.Row;
-            container.style.alignItems = Align.Center;
-
-            Label label = new Label(context.Property.displayName);
-            label.AddToClassList(InspectorClassNames.AFFIX_LABEL);
-
-            FloatField minField = new FloatField { isDelayed = true };
-            minField.style.width = 48f;
-            minField.BindProperty(minProperty);
-
-            MinMaxSlider slider = new MinMaxSlider(attribute.Min, attribute.Max, attribute.Min, attribute.Max)
+            float Snap(float value)
             {
-                style = { flexGrow = 1 },
-                value = new Vector2(minProperty.floatValue, maxProperty.floatValue)
-            };
-
-            FloatField maxField = new FloatField { isDelayed = true };
-            maxField.style.width = 48f;
-            maxField.BindProperty(maxProperty);
-
-            bool syncing = false;
-
-            void SyncFromFields()
-            {
-                if (syncing) return;
-                syncing = true;
-                slider.SetValueWithoutNotify(new Vector2(minField.value, maxField.value));
-                syncing = false;
+                float snapped = SteppedValueUtility.Snap(value, attribute.Min, attribute.Max, attribute.Step);
+                return isInteger ? Mathf.Round(snapped) : snapped;
             }
 
-            minField.RegisterValueChangedCallback(changeEvent =>
+            ValueInput minInput = CreateInput(minProperty);
+            ValueInput maxInput = CreateInput(maxProperty);
+
+            MinMaxSlider slider = new MinMaxSlider(
+                context.Property.displayName, ReadValue(minProperty), ReadValue(maxProperty), attribute.Min, attribute.Max);
+            slider.AddToClassList(BaseField<Vector2>.alignedFieldUssClassName);
+
+            // ラベル幅の揃えは BaseField 本体にしか効かないので、数値欄はスライダーの中に差し込む
+            slider.Insert(slider.IndexOf(slider.labelElement) + 1, minInput.Element);
+            slider.Add(maxInput.Element);
+
+            minInput.OnChanged(newValue =>
             {
-                float snapped = SteppedValueUtility.Snap(changeEvent.newValue, attribute.Min, attribute.Max, attribute.Step);
-                snapped = Mathf.Min(snapped, maxField.value);
-                if (!Mathf.Approximately(snapped, changeEvent.newValue)) minField.value = snapped;
-                else SyncFromFields();
+                float snapped = Mathf.Min(Snap(newValue), maxInput.Value);
+                if (!Mathf.Approximately(snapped, newValue)) minInput.Value = snapped;
+                else slider.SetValueWithoutNotify(new Vector2(minInput.Value, maxInput.Value));
             });
 
-            maxField.RegisterValueChangedCallback(changeEvent =>
+            maxInput.OnChanged(newValue =>
             {
-                float snapped = SteppedValueUtility.Snap(changeEvent.newValue, attribute.Min, attribute.Max, attribute.Step);
-                snapped = Mathf.Max(snapped, minField.value);
-                if (!Mathf.Approximately(snapped, changeEvent.newValue)) maxField.value = snapped;
-                else SyncFromFields();
+                float snapped = Mathf.Max(Snap(newValue), minInput.Value);
+                if (!Mathf.Approximately(snapped, newValue)) maxInput.Value = snapped;
+                else slider.SetValueWithoutNotify(new Vector2(minInput.Value, maxInput.Value));
             });
 
             slider.RegisterValueChangedCallback(changeEvent =>
             {
-                if (syncing) return;
+                float snappedMin = Snap(changeEvent.newValue.x);
+                float snappedMax = Snap(changeEvent.newValue.y);
 
-                float snappedMin = SteppedValueUtility.Snap(changeEvent.newValue.x, attribute.Min, attribute.Max, attribute.Step);
-                float snappedMax = SteppedValueUtility.Snap(changeEvent.newValue.y, attribute.Min, attribute.Max, attribute.Step);
-
-                // FloatField への代入が BindProperty 経由でプロパティに書き戻る
-                minField.value = snappedMin;
-                maxField.value = snappedMax;
+                // 数値欄への代入が BindProperty 経由でプロパティに書き戻る
+                minInput.Value = snappedMin;
+                maxInput.Value = snappedMax;
                 slider.SetValueWithoutNotify(new Vector2(snappedMin, snappedMax));
             });
 
-            container.Add(label);
-            container.Add(minField);
-            container.Add(slider);
-            container.Add(maxField);
+            // Undo などで外から値が変わったときもスライダーを追従させる
+            slider.TrackPropertyValue(context.Property, tracked =>
+            {
+                SerializedProperty min = tracked.serializedObject.FindProperty(minPath);
+                SerializedProperty max = tracked.serializedObject.FindProperty(maxPath);
+                if (min == null || max == null) return;
 
-            return FieldFactoryResult.Accept(container);
+                slider.SetValueWithoutNotify(new Vector2(ReadValue(min), ReadValue(max)));
+            });
+
+            return FieldFactoryResult.Accept(slider, slider.labelElement);
         }
 
         private static SerializedProperty FindChild(SerializedProperty property, string primaryName, string fallbackName)
             => property.FindPropertyRelative(primaryName) ?? property.FindPropertyRelative(fallbackName);
+
+        private static float ReadValue(SerializedProperty property)
+            => property.propertyType == SerializedPropertyType.Integer ? property.intValue : property.floatValue;
+
+        private static ValueInput CreateInput(SerializedProperty property)
+        {
+            if (property.propertyType == SerializedPropertyType.Integer)
+            {
+                IntegerField integerField = new IntegerField { isDelayed = true };
+                integerField.BindProperty(property);
+                return new ValueInput(
+                    integerField,
+                    () => integerField.value,
+                    value => integerField.value = Mathf.RoundToInt(value),
+                    callback => integerField.RegisterValueChangedCallback(changeEvent => callback(changeEvent.newValue)));
+            }
+
+            FloatField floatField = new FloatField { isDelayed = true };
+            floatField.BindProperty(property);
+            return new ValueInput(
+                floatField,
+                () => floatField.value,
+                value => floatField.value = value,
+                callback => floatField.RegisterValueChangedCallback(changeEvent => callback(changeEvent.newValue)));
+        }
+
+        /// <summary>float と int の数値欄を、float で読み書きできるようにそろえる。</summary>
+        private sealed class ValueInput
+        {
+            private readonly Func<float> _getter;
+            private readonly Action<float> _setter;
+            private readonly Action<Action<float>> _subscribe;
+
+            public VisualElement Element { get; }
+
+            public float Value
+            {
+                get => _getter();
+                set => _setter(value);
+            }
+
+            public ValueInput(
+                VisualElement element, Func<float> getter, Action<float> setter, Action<Action<float>> subscribe)
+            {
+                Element = element;
+                Element.AddToClassList(InspectorClassNames.MIN_MAX_VALUE);
+                _getter = getter;
+                _setter = setter;
+                _subscribe = subscribe;
+            }
+
+            public void OnChanged(Action<float> callback) => _subscribe(callback);
+        }
     }
 }

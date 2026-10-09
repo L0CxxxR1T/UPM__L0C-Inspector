@@ -26,10 +26,7 @@ namespace XXXL0C.Inspector.Editor
             if (!settings.StopBuildOnError) return;
 
             List<ValidationIssue> issues = new List<ValidationIssue>();
-            string[] scenePaths = EditorBuildSettings.scenes
-                .Where(scene => scene.enabled)
-                .Select(scene => scene.path)
-                .ToArray();
+            string[] scenePaths = BuildSceneList.GetEnabledScenePaths().ToArray();
 
             ValidateDependencies(scenePaths, issues);
 
@@ -64,7 +61,7 @@ namespace XXXL0C.Inspector.Editor
                     {
                         if (component == null) continue;
 
-                        ObjectValidator.Validate(component, path, component.name, issues);
+                        ObjectValidator.ValidateExceptSource(component, path, component.name, issues);
                     }
 
                     continue;
@@ -106,7 +103,7 @@ namespace XXXL0C.Inspector.Editor
                         {
                             if (component == null) continue;
 
-                            ObjectValidator.Validate(component, scenePath, component.name, issues);
+                            ObjectValidator.ValidateExceptSource(component, scenePath, component.name, issues);
                         }
                     }
                 }

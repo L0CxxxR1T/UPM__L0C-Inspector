@@ -91,6 +91,8 @@ namespace XXXL0C.Inspector.Editor
         {
             Object[] targets = serializedObject.targetObjects;
 
+            // 新しいグループを切らないと、直前の編集と同じ Undo にまとめられてしまう
+            Undo.IncrementCurrentGroup();
             int group = Undo.GetCurrentGroup();
             Undo.SetCurrentGroupName($"Button: {label}");
 

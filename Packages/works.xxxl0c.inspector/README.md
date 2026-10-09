@@ -75,6 +75,7 @@ public sealed class PlayerEditor : UnityEditor.Editor
 ### `[ReadOnly]`
 
 インスペクタでの編集を禁止し、表示のみにする。
+`SetEnabled(false)` ではなく入力を止める方式なので、リストや折りたたみの開閉とスクロールはできる。
 
 ### `[ShowIf]` / `[HideIf]`
 
@@ -139,8 +140,9 @@ private const string GROUP_DAMAGE = "戦闘/ダメージ";
 ### `[ReadOnlyInPlayMode]`
 
 Play Mode 中だけ編集を禁止する。インスペクタを開いたまま Play Mode に出入りしても正しく追従する。
+`[ReadOnly]` と併記しても打ち消し合わない。
 
-### `[SteppedRange]` / `[SteppedMinMaxSlider]` / `[SceneName]`
+### `[SteppedRange]` / `[SteppedMinMaxSlider]` / `[SceneName]` / `[TypeFilter]`
 
 `PropertyField` そのものを専用コントロールに差し替える属性。対応していない型に付けた場合は
 標準の `PropertyField` にフォールバックし、`HelpBox` で理由を通知する（検証メッセージとは別の
@@ -151,16 +153,71 @@ Play Mode 中だけ編集を禁止する。インスペクタを開いたまま 
 [SerializeField] private float _stepped;
 
 [SteppedMinMaxSlider(0f, 100f, 5f)]
-[SerializeField] private MyFloatRange _range; // _min / _max（または min / max）フィールドが必要
+[SerializeField] private FloatRange _range; // _min / _max（または min / max）を持つ型。int 同士も可
 
 [SceneName]
-[SerializeField] private string _targetScene; // Build Settings のシーン名から選ぶ
+[SerializeField] private string _targetScene; // ビルド対象のシーン名から選ぶ
+
+[TypeFilter]
+[SerializeReference] private IShape _shape; // 実装クラスをドロップダウンで選ぶ
 ```
+
+- `[Label]` / `[OnValueChanged]` / `[Tooltip]` / `[Header]` / `[Space]` は差し替えた本体にも効く
+- `FloatRange` / `IntRange` はパッケージ側で用意している。`[SteppedMinMaxSlider]` にそのまま使える
+- `[SceneName]` の候補はアクティブな Build Profile のシーンリスト（有効なものだけ）。
+  一覧に無い名前が入っていると検証層が Error を出す（空文字は対象外）
+- `[TypeFilter]` の候補は、フィールドの型（または `[TypeFilter(typeof(基底型))]`）を継承した
+  `[Serializable]` で引数なしコンストラクタを持つ具象クラス。`[SerializeReference]` の配列・`List` の要素には未対応
+  （`SerializableType` は配列・`List` でも使える。下記）
+
+## 値の型
+
+### `Optional<T>`
+
+「値が無い」状態を持てる値。インスペクタでは値の欄の右にチェックボックスが付き、外すと値の欄が表示のみになる。
+
+```csharp
+[SerializeField] private Optional<int> _overrideCount;
+
+if (_overrideCount.TryGetValue(out int count)) { /* ... */ }
+```
+
+### `EnumIndexedList<TEnum, TValue>`（Unity 6.5 以前向け）
+
+enum の各メンバーに値を1つずつ持つ表。インスペクタでは enum のメンバー名を見出しにして並ぶ。
+**Unity 6.6 以降は標準でシリアライズされる `Dictionary<TEnum, TValue>` を使う方がよい。**
+
+- 値は enum の宣言順の位置で保存する。メンバーを途中に挿入・並べ替えると値がずれる（末尾への追加は安全）
+- 値が飛び飛びの enum にも使える。同じ値の別名は同じ要素を指す
+
+### `SerializableType`
+
+インスペクタで選んだ型を保存する。保存するのは型の完全名だけで、**実行時に `Type` へ戻すときは
+`SerializableTypeRegistry` に明示的に登録した型からしか引かない**。名前からリフレクションで型を解決すると、
+IL2CPP のコードストリッピングで型が消えたときにビルドでだけ黙って壊れるため。
+
+```csharp
+[Required]
+[TypeFilter(typeof(IEnemy))]
+[SerializeField] private SerializableType _enemyType;
+
+// 起動時（Composition Root など）に、引く可能性のある型をすべて登録する
+SerializableTypeRegistry.Register<SlimeEnemy>();
+SerializableTypeRegistry.Register<GoblinEnemy>();
+
+Type enemyType = _enemyType.Resolve(); // 未設定・未登録なら例外
+```
+
+- `[TypeFilter(typeof(基底型))]` で候補を絞ったドロップダウンになる（基底型の指定が必須）。配列・`List` の要素にも効く
+- 保存している型名が候補に無い（クラスの改名・削除、基底型の変更）と、検証層が Error を出す
+- `[Required]` を付けると、型が未選択のときに Error を出す
+- Editor でも登録表しか見ない。Editor では動くのにビルドで壊れる、という食い違いを作らないため
 
 ### `[OnValueChanged]`
 
 値が変わるたびに、同じインスタンス上の引数なしメソッドを呼ぶ。メソッド名のタイポは検証層が
 Warning で報告するので、一括チェックウィンドウでもプロジェクト横断で拾える。
+複数選択中に値を変えると、選択中の全オブジェクトで呼ばれる。
 
 ```csharp
 [OnValueChanged(nameof(OnCountChanged))]
@@ -172,6 +229,7 @@ private void OnCountChanged() { /* ... */ }
 ### `[InlineEditor]`
 
 Object 参照フィールドの下に、参照先のインスペクタをそのまま埋め込む。
+A と B が互いを参照している場合は1周で止め、入れ子は 3 段までにする（超えた分は案内だけ出す）。
 
 ### `[Button]`
 
@@ -282,6 +340,13 @@ public sealed class TooltipDecorator : IPropertyDecorator
 3層とも同じ判定ロジック（`VisibilityEvaluator` / `ValidationWalker` / `ObjectValidator`）を通るので、
 「インスペクタでは何も出ないのにビルドが止まる」という食い違いは起きない。
 
+ネストしたプレハブ・Variant・シーン上のプレハブインスタンスは、元のプレハブと同じ結果を報告しない
+（元のプレハブ側で1回だけ出る）。オーバーライドで結果が変わったものだけがインスタンス側に出る。
+
+ビルド対象のシーンは `EditorBuildSettings.scenes` から取る。アクティブな Build Profile がシーンリストを
+上書きしていればそちらが使われる。アクティブでないプロファイルを指定したビルドや、スクリプトから
+シーンを直接渡したビルドは判別できない。
+
 `Project Settings > XXXL0C > インスペクタ検証` で以下を切り替えられる。
 
 - **ビルド時にエラーで止める**（既定オン）— 締切直前にオフにできるよう、あえてスイッチとして残してある
@@ -301,8 +366,15 @@ public sealed class TooltipDecorator : IPropertyDecorator
 - `[ShowIf]` の値比較は bool / enum / 整数 / float / string / Object 参照の有無まで。
   フラグ enum の部分一致は未対応
 
+- `[Header]` / `[Space]` 以外の DecoratorDrawer は、本体を差し替えたフィールドと自前展開したネストクラスでは出ない
+
+## テスト
+
+UI に依存しない処理（`ConditionEvaluator` / `PropertyPathUtility` / パスの分解 / ステップ丸めなど）は
+`Tests/EditMode` に EditMode テストがある。Test Runner の EditMode タブから実行できる。
+
 ## 未実装
 
-`[TypeFilter]`（`[SerializeReference]` の型切り替えと配下の再帰描画）/ `[NotEmpty]`。
+`[NotEmpty]`。
 
 自前の `SerializableDictionary` は作らない。Unity 6.6 の標準 Dictionary シリアライズを使う。

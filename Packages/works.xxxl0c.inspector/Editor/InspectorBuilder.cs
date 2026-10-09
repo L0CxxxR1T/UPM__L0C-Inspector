@@ -31,6 +31,10 @@ namespace XXXL0C.Inspector.Editor
             "Packages/works.xxxl0c.inspector/Editor/Styles/InspectorStyles.uss";
         private const string SCRIPT_PROPERTY_PATH = "m_Script";
 
+        // Unity 標準の [Header] / [Space] と同じ見た目にするため、標準のクラス名をそのまま使う
+        private const string DECORATOR_CONTAINER_CLASS = "unity-decorator-drawers-container";
+        private const string HEADER_LABEL_CLASS = "unity-header-drawer__label";
+
         private static StyleSheet _styleSheet;
         private static bool _styleSheetErrorLogged;
 
@@ -135,6 +139,7 @@ namespace XXXL0C.Inspector.Editor
             row.AddToClassList(InspectorClassNames.ROW);
 
             VisualElement fieldElement;
+            Label factoryLabel = null;
             string declineReason = null;
 
             if (TryResolveFieldFactory(attributes, out Attribute factoryAttribute, out IFieldFactory factory))
@@ -144,7 +149,11 @@ namespace XXXL0C.Inspector.Editor
                 {
                     // ファクトリが本体を丸ごと差し替えたら、その配下は factory の責任範囲。自前展開はしない
                     fieldElement = result.Element;
+                    factoryLabel = result.LabelElement;
                     expand = false;
+
+                    // PropertyField なら [Tooltip] を自動で拾うが、差し替えた本体には自分で渡す
+                    if (!string.IsNullOrEmpty(property.tooltip)) fieldElement.tooltip = property.tooltip;
                 }
                 else
                 {
@@ -155,6 +164,12 @@ namespace XXXL0C.Inspector.Editor
             else
             {
                 fieldElement = CreateDefaultField(property, fieldInfo, expand);
+            }
+
+            // [Header] / [Space] は PropertyField が描くので、それ以外の本体では自分で出す
+            if (!(fieldElement is PropertyField) && !(fieldElement is DictionaryField))
+            {
+                AddDecoratorAttributes(row, attributes);
             }
 
             row.Add(fieldElement);
@@ -171,7 +186,7 @@ namespace XXXL0C.Inspector.Editor
             messageArea.AddToClassList(InspectorClassNames.MESSAGES);
             row.Add(messageArea);
 
-            ApplyDecorators(property, fieldElement, row, fieldInfo, attributes);
+            ApplyDecorators(property, fieldElement, factoryLabel, row, fieldInfo, attributes);
 
             GroupNode ownerNode = ResolveGroup(parentNode, groupTree, attributes);
             InspectorRow inspectorRow = new InspectorRow(
@@ -202,6 +217,44 @@ namespace XXXL0C.Inspector.Editor
             }
 
             return new PropertyField(property);
+        }
+
+        /// <summary>
+        /// Unity 標準の [Header] / [Space] を PropertyField と同じ見た目で出す。
+        /// それ以外の DecoratorDrawer は Unity の内部 API を通さないと引けないので対象外。
+        /// </summary>
+        private static void AddDecoratorAttributes(VisualElement row, Attribute[] attributes)
+        {
+            List<PropertyAttribute> decorators = new List<PropertyAttribute>();
+            foreach (Attribute attribute in attributes)
+            {
+                if (attribute is HeaderAttribute || attribute is SpaceAttribute) decorators.Add((PropertyAttribute)attribute);
+            }
+
+            if (decorators.Count == 0) return;
+
+            decorators.Sort((left, right) => left.order.CompareTo(right.order));
+
+            VisualElement container = new VisualElement();
+            container.AddToClassList(DECORATOR_CONTAINER_CLASS);
+            foreach (PropertyAttribute decorator in decorators)
+            {
+                if (decorator is HeaderAttribute header)
+                {
+                    Label label = new Label(header.header);
+                    label.AddToClassList(HEADER_LABEL_CLASS);
+                    container.Add(label);
+                }
+                else if (decorator is SpaceAttribute space)
+                {
+                    // 高さは属性の引数なので USS に逃がせない
+                    VisualElement spacer = new VisualElement();
+                    spacer.style.height = space.height;
+                    container.Add(spacer);
+                }
+            }
+
+            row.Add(container);
         }
 
         private static Foldout CreateNestedFoldout(SerializedProperty property)
@@ -300,6 +353,7 @@ namespace XXXL0C.Inspector.Editor
         private static void ApplyDecorators(
             SerializedProperty property,
             VisualElement fieldElement,
+            Label factoryLabel,
             VisualElement row,
             FieldInfo fieldInfo,
             Attribute[] attributes)
@@ -327,11 +381,12 @@ namespace XXXL0C.Inspector.Editor
             foreach (PendingDecoration entry in pending)
             {
                 entry.Decorator.Decorate(
-                    new DecorationContext(property, fieldElement, row, fieldInfo, entry.Attribute));
+                    new DecorationContext(property, fieldElement, factoryLabel, row, fieldInfo, entry.Attribute));
             }
         }
 
-        private static void ApplyStyleSheet(VisualElement root)
+        /// <summary>InspectorStyles.uss を当てる。標準インスペクタの中で描かれる型の Drawer からも呼ぶ。</summary>
+        internal static void ApplyStyleSheet(VisualElement root)
         {
             if (_styleSheet == null)
             {

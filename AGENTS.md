@@ -17,4 +17,4 @@ C#/Unity の規約と Editor 操作方針（コンパイル確認・テスト・
 - DI: なし（ライブラリのため）
 - 公式 Unity CLI の pipeline（`com.unity.pipeline`）: 導入済み
 - uloop（`io.github.hatayama.uloopmcp`）: 導入済み
-- テスト asmdef: まだ無い
+- テスト asmdef: `Packages/works.xxxl0c.inspector/Tests/EditMode/XXXL0C.Inspector.Tests.EditMode.asmdef`（Editor 側の internal は `Editor/AssemblyInfo.cs` で公開）

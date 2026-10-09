@@ -9,6 +9,8 @@ namespace XXXL0C.Inspector.Editor
     /// </summary>
     public sealed class RequiredRule : IValidationRule
     {
+        private const string SERIALIZABLE_TYPE_NAME_FIELD = "_typeName";
+
         public Type AttributeType => typeof(RequiredAttribute);
 
         public void Validate(ValidationContext context)
@@ -45,6 +47,14 @@ namespace XXXL0C.Inspector.Editor
                         ReportMissing(context, attribute);
                     }
                     return;
+            }
+
+            // SerializableType は型名が空なら未設定
+            if (context.ValueType == typeof(SerializableType))
+            {
+                SerializedProperty typeName = property.FindPropertyRelative(SERIALIZABLE_TYPE_NAME_FIELD);
+                if (typeName != null && string.IsNullOrEmpty(typeName.stringValue)) ReportMissing(context, attribute);
+                return;
             }
 
             switch (property.propertyType)

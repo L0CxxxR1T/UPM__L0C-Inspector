@@ -18,7 +18,7 @@ namespace XXXL0C.Inspector.Editor
         public void Decorate(DecorationContext context)
         {
             VisualElement field = context.Field;
-            PlayModeTracking.Track(field, () => field.SetEnabled(!EditorApplication.isPlaying));
+            PlayModeTracking.Track(field, () => ReadOnlyGuard.SetLocked(field, AttributeType, EditorApplication.isPlaying));
         }
     }
 }

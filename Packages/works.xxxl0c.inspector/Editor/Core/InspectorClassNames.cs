@@ -26,7 +26,18 @@ namespace XXXL0C.Inspector.Editor
         public const string AFFIX_ROW = "l0c-inspector__affix-row";
         public const string AFFIX_LABEL = "l0c-inspector__affix-label";
 
+        public const string MIN_MAX_VALUE = "l0c-inspector__min-max-value";
+
+        public const string READ_ONLY = "l0c-inspector__read-only";
+
         public const string INLINE_EDITOR = "l0c-inspector__inline-editor";
+        public const string INLINE_EDITOR_NOTICE = "l0c-inspector__inline-editor-notice";
+
+        public const string TYPE_FILTER_CONTENT = "l0c-inspector__type-filter-content";
+
+        public const string OPTIONAL = "l0c-inspector__optional";
+        public const string OPTIONAL_VALUE = "l0c-inspector__optional-value";
+        public const string OPTIONAL_TOGGLE = "l0c-inspector__optional-toggle";
 
         public const string BUTTON = "l0c-inspector__button";
         public const string BUTTON_FOOTER = "l0c-inspector__button-footer";

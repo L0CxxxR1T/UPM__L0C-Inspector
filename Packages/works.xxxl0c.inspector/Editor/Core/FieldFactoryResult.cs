@@ -9,18 +9,27 @@ namespace XXXL0C.Inspector.Editor
     public readonly struct FieldFactoryResult
     {
         public VisualElement Element { get; }
+
+        /// <summary>表示名を出している Label。[Label] などの装飾が書き換える。無ければ null。</summary>
+        public Label LabelElement { get; }
+
         public string DeclineReason { get; }
 
         public bool IsAccepted => DeclineReason == null;
 
-        private FieldFactoryResult(VisualElement element, string declineReason)
+        private FieldFactoryResult(VisualElement element, Label labelElement, string declineReason)
         {
             Element = element;
+            LabelElement = labelElement;
             DeclineReason = declineReason;
         }
 
-        public static FieldFactoryResult Accept(VisualElement element) => new FieldFactoryResult(element, null);
+        /// <param name="labelElement">
+        /// 表示名の Label。BaseField なら labelElement を渡す。渡さないと [Label] が反映されない。
+        /// </param>
+        public static FieldFactoryResult Accept(VisualElement element, Label labelElement)
+            => new FieldFactoryResult(element, labelElement, null);
 
-        public static FieldFactoryResult Decline(string reason) => new FieldFactoryResult(null, reason);
+        public static FieldFactoryResult Decline(string reason) => new FieldFactoryResult(null, null, reason);
     }
 }

@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
+using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace XXXL0C.Inspector.Editor
@@ -58,6 +60,48 @@ namespace XXXL0C.Inspector.Editor
                         assetPath, objectPath, componentTypeName, property.propertyPath, globalObjectId, message));
                 }
             }
+        }
+
+        /// <summary>
+        /// プレハブインスタンスの一部であるコンポーネントを検証し、元のプレハブと同じ結果は報告しない。
+        /// ネストしたプレハブ・Variant・シーン上のインスタンスで同じ問題が二重に並ぶのを防ぐ。
+        /// 元のプレハブ自体も同じ走査で検証される前提で、オーバーライドで変わった結果だけがここに残る。
+        /// </summary>
+        public static void ValidateExceptSource(
+            Component component, string assetPath, string objectPath, List<ValidationIssue> issues)
+        {
+            Component source = PrefabUtility.GetCorrespondingObjectFromSource(component);
+            if (source == null)
+            {
+                Validate(component, assetPath, objectPath, issues);
+                return;
+            }
+
+            List<ValidationIssue> own = new List<ValidationIssue>();
+            Validate(component, assetPath, objectPath, own);
+            if (own.Count == 0) return;
+
+            List<ValidationIssue> inherited = new List<ValidationIssue>();
+            Validate(source, string.Empty, string.Empty, inherited);
+
+            foreach (ValidationIssue issue in own)
+            {
+                if (!ContainsSameIssue(inherited, issue)) issues.Add(issue);
+            }
+        }
+
+        private static bool ContainsSameIssue(List<ValidationIssue> issues, ValidationIssue target)
+        {
+            foreach (ValidationIssue issue in issues)
+            {
+                if (string.Equals(issue.PropertyPath, target.PropertyPath, StringComparison.Ordinal)
+                    && issue.Message.Equals(target.Message))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

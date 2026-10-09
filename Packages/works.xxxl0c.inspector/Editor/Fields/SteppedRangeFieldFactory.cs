@@ -25,6 +25,7 @@ namespace XXXL0C.Inspector.Editor
             {
                 showInputField = true
             };
+            slider.AddToClassList(BaseField<float>.alignedFieldUssClassName);
             slider.BindProperty(context.Property);
 
             // BindProperty は生の値をそのまま書き戻すので、丸めは変更イベント側で上書きする形で行う
@@ -37,7 +38,7 @@ namespace XXXL0C.Inspector.Editor
                 }
             });
 
-            return FieldFactoryResult.Accept(slider);
+            return FieldFactoryResult.Accept(slider, slider.labelElement);
         }
     }
 }

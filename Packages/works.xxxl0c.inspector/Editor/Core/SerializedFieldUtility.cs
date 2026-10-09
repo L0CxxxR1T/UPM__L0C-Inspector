@@ -21,7 +21,7 @@ namespace XXXL0C.Inspector.Editor
         public static IEnumerable<FieldInfo> EnumerateSerializedFields(Type type)
         {
             Type current = type;
-            while (current != null && current != typeof(object) && !IsFrameworkNamespace(current.Namespace))
+            while (current != null && current != typeof(object) && !FrameworkNamespace.Contains(current.Namespace))
             {
                 foreach (FieldInfo field in current.GetFields(FIELD_FLAGS))
                 {
@@ -109,7 +109,7 @@ namespace XXXL0C.Inspector.Editor
             if (type.IsPrimitive || type.IsEnum || type == typeof(string)) return false;
             if (typeof(UnityEngine.Object).IsAssignableFrom(type)) return false;
 
-            return !IsFrameworkNamespace(type.Namespace);
+            return !FrameworkNamespace.Contains(type.Namespace);
         }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace XXXL0C.Inspector.Editor
         /// propertyPath を「フィールド名」または「配列添字」の列に分解する。
         /// ".Array.data[3]" は1つの添字ステップにまとめる（Unity のパス表現をそのまま辿ると壊れるため）。
         /// </summary>
-        private static List<PathStep> ParsePathSteps(string propertyPath)
+        internal static List<PathStep> ParsePathSteps(string propertyPath)
         {
             const string ARRAY_TOKEN = "Array";
             const string DATA_PREFIX = "data[";
@@ -234,7 +234,7 @@ namespace XXXL0C.Inspector.Editor
             return value;
         }
 
-        private readonly struct PathStep
+        internal readonly struct PathStep
         {
             /// <summary>フィールド名。添字ステップなら null。</summary>
             public string Name { get; }
@@ -253,15 +253,6 @@ namespace XXXL0C.Inspector.Editor
                 Index = index;
                 Path = path;
             }
-        }
-
-        private static bool IsFrameworkNamespace(string namespaceName)
-        {
-            if (namespaceName == null) return false;
-
-            return namespaceName.StartsWith("System", StringComparison.Ordinal)
-                || namespaceName.StartsWith("Unity", StringComparison.Ordinal)
-                || namespaceName.StartsWith("Microsoft", StringComparison.Ordinal);
         }
     }
 }

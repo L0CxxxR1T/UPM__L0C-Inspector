@@ -14,14 +14,19 @@ namespace XXXL0C.Inspector.Editor
         {
             LabelAttribute attribute = (LabelAttribute)context.Attribute;
 
-            // 自前展開されたネストクラスでは本体が Foldout になる（PropertyField ではない）
             if (context.AsPropertyField != null)
             {
                 context.AsPropertyField.label = attribute.DisplayName;
             }
             else if (context.Field is Foldout foldout)
             {
+                // 自前展開されたネストクラスでは本体が Foldout になる
                 foldout.text = attribute.DisplayName;
+            }
+            else if (context.FactoryLabel != null)
+            {
+                // IFieldFactory が差し替えた本体
+                context.FactoryLabel.text = attribute.DisplayName;
             }
         }
     }

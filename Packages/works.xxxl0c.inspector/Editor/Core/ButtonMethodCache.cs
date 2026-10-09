@@ -28,7 +28,7 @@ namespace XXXL0C.Inspector.Editor
 
             List<MethodInfo> methods = new List<MethodInfo>();
             Type current = type;
-            while (current != null && current != typeof(object) && !IsFrameworkNamespace(current.Namespace))
+            while (current != null && current != typeof(object) && !FrameworkNamespace.Contains(current.Namespace))
             {
                 foreach (MethodInfo method in current.GetMethods(METHOD_FLAGS))
                 {
@@ -43,15 +43,6 @@ namespace XXXL0C.Inspector.Editor
 
             _cache[type] = methods;
             return methods;
-        }
-
-        private static bool IsFrameworkNamespace(string namespaceName)
-        {
-            if (namespaceName == null) return false;
-
-            return namespaceName.StartsWith("System", StringComparison.Ordinal)
-                || namespaceName.StartsWith("Unity", StringComparison.Ordinal)
-                || namespaceName.StartsWith("Microsoft", StringComparison.Ordinal);
         }
     }
 }

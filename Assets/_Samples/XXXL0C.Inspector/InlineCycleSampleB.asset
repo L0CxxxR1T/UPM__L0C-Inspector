@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e740f1638422c44a52fc424886c0fc, type: 3}
+  m_Name: InlineCycleSampleB
+  m_EditorClassIdentifier: XXXL0C.Inspector.Samples::XXXL0C.Inspector.Samples.InlineCycleSampleAsset
+  _memo: B
+  _partner: {fileID: 11400000, guid: 8b3d951224f623e4d9b28928960c4dd8, type: 2}
