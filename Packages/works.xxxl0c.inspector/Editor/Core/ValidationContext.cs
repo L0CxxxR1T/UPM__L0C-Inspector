@@ -24,18 +24,38 @@ namespace XXXL0C.Inspector.Editor
         /// <summary>メッセージ内でフィールドを指すための表示名。ネストしていれば相対パスになる。</summary>
         public string Label { get; }
 
+        /// <summary>属性の付いたフィールドから見た Property の位置。</summary>
+        public CollectionRole Role { get; }
+
+        /// <summary>Property の値の C# 型。コレクションの要素なら要素型になる。</summary>
+        public Type ValueType { get; }
+
         public ValidationContext(
             SerializedProperty property,
             FieldInfo fieldInfo,
             Attribute attribute,
             string label,
             List<ValidationMessage> messages)
+            : this(property, fieldInfo, attribute, label, messages, CollectionRole.None, fieldInfo?.FieldType)
+        {
+        }
+
+        public ValidationContext(
+            SerializedProperty property,
+            FieldInfo fieldInfo,
+            Attribute attribute,
+            string label,
+            List<ValidationMessage> messages,
+            CollectionRole role,
+            Type valueType)
         {
             Property = property;
             FieldInfo = fieldInfo;
             Attribute = attribute;
             Label = label;
             _messages = messages;
+            Role = role;
+            ValueType = valueType;
         }
 
         public void Report(ValidationSeverity severity, string text)

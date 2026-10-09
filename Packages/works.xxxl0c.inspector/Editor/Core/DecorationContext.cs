@@ -13,12 +13,15 @@ namespace XXXL0C.Inspector.Editor
 
         /// <summary>
         /// 加工対象のフィールド本体。通常は <see cref="PropertyField"/>、
-        /// 自前展開したネストクラスでは <see cref="Foldout"/> になる。
+        /// 自前展開したネストクラスでは <see cref="Foldout"/>、Dictionary では追加欄を含むコンテナになる。
         /// </summary>
         public VisualElement Field { get; }
 
-        /// <summary>Field が PropertyField のときだけ取れる。展開されたネストクラスでは null。</summary>
-        public PropertyField AsPropertyField => Field as PropertyField;
+        /// <summary>
+        /// 本体の PropertyField。Dictionary ではコンテナの中のものを返す。展開されたネストクラスでは null。
+        /// </summary>
+        public PropertyField AsPropertyField
+            => Field is DictionaryField dictionaryField ? dictionaryField.PropertyField : Field as PropertyField;
 
         /// <summary>Field と検証メッセージ領域を含む行コンテナ。要素を差し込みたいときに使う。</summary>
         public VisualElement Row { get; }

@@ -194,6 +194,31 @@ private void RuntimeOnlyAction() { /* ... */ }
   引数ありメソッドに付けた場合は黙って無視せず `HelpBox` で通知する
 - ボタンだけのグループ（フィールドが1つも無い）でも、空グループとして隠れることはない
 
+## Dictionary（Unity 6.6 以降）
+
+Unity 6.6 の標準 Dictionary シリアライズ（`[SerializeField] Dictionary<TKey, TValue>`）に対応する。
+属性を付けなくても、Dictionary フィールドを持つクラスはこのパッケージのインスペクタで表示される。
+6.6 未満では Unity が Dictionary をシリアライズしないので、以下の処理はすべて無効になる。
+
+```csharp
+[Required]
+[SerializeField] private Dictionary<string, GameObject> _prefabs = new Dictionary<string, GameObject>();
+```
+
+- 表示は Unity 標準の Drawer（2カラム表示、`[DictionaryDisplay]`）に任せる
+- **追加は自前の追加欄に一本化する。** キーを入力した時点で重複と null を弾くので、重複したまま要素は増えない。
+  標準の「+」は選択中の要素を複製する（＝押した時点で重複キーができる）ため隠し、複製・貼り付けのコマンドも止める
+  - 入力欄があるキー型: `string` / 整数 / 浮動小数 / `bool` / enum / `UnityEngine.Object` / `Vector2(Int)` / `Vector3(Int)` / `Color`
+  - それ以外（独自の構造体など）は既定値のキーで追加し、表の中で書き換える。既定値のキーが既にあれば追加できない
+- **重複キーは属性の有無に関わらず Error。** 表の中でキーを書き換えれば重複は作れるため、検証層でも拾う。
+  実行時は最初の要素だけが使われ、Player では黙って捨てられる
+- `[Required]` を付けると、キーの null（Object 参照キーの未設定・参照切れ）と値の null を検出する。
+  キーにも値にも「未設定」の概念が無い型（`Dictionary<string, int>` など）では HelpBox で通知する
+- 値のクラスの中の `[Required]` / `[ShowIf]` も検証される。装飾属性は List と同じく反映されない（Warning で通知）
+- 追加欄が付くのは、このパッケージが行を組むフィールド（トップレベルと自前展開したネストクラス）だけ。
+  List の要素の中や Dictionary の値の中の Dictionary、カスタム Drawer を持つ型の中は標準の動作のまま
+  （重複キーの検証は効く）
+
 ## 拡張する
 
 属性を足すときは「属性クラス + 実装クラス」の2つだけ書けばよい。
@@ -267,12 +292,15 @@ public sealed class TooltipDecorator : IPropertyDecorator
 
 - `[SerializeReference]` の中身は展開しない（具象型が実行時に変わるとツリーの作り直しが必要になるため）。
   検証も対象外
-- 配列 / `List` の要素は1行ずつ展開せず、`PropertyField` のリスト描画に任せる
-- 複数選択編集中は検証しない（混在値で誤検知が出るため）
+- 配列 / `List` の要素は1行ずつ展開せず、`PropertyField` のリスト描画に任せる。
+  要素のクラスの中の装飾属性は反映されない（Warning で通知する）
+- 複数選択編集中は検証しない（混在値で誤検知が出るため）。Dictionary の追加欄も出さない
+  （Unity 標準の Dictionary 表示が複数選択編集に対応していないため）
 - `[ShowIf]` の値比較は bool / enum / 整数 / float / string / Object 参照の有無まで。
   フラグ enum の部分一致は未対応
 
 ## 未実装
 
-`SerializableDictionary` / `[TypeFilter]`（`[SerializeReference]` の型切り替えと配下の再帰描画）/
-`[NotEmpty]`。
+`[TypeFilter]`（`[SerializeReference]` の型切り替えと配下の再帰描画）/ `[NotEmpty]`。
+
+自前の `SerializableDictionary` は作らない。Unity 6.6 の標準 Dictionary シリアライズを使う。

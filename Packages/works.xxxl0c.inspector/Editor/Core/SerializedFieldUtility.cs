@@ -119,7 +119,7 @@ namespace XXXL0C.Inspector.Editor
         /// </summary>
         public static object ResolveOwnerObject(SerializedProperty property)
         {
-            List<object> steps = ParsePathSteps(property.propertyPath);
+            List<PathStep> steps = ParsePathSteps(property.propertyPath);
             if (steps.Count == 0) return null;
 
             object current = property.serializedObject.targetObject;
@@ -127,7 +127,22 @@ namespace XXXL0C.Inspector.Editor
             // 最後の1段は「持ち主から見た自分自身」を表すので、そこへ降りる前で止める
             for (int i = 0; i < steps.Count - 1; i++)
             {
-                current = ApplyStep(current, steps[i]);
+                PathStep step = steps[i];
+
+                if (step.IsIndex && current is IDictionary dictionary)
+                {
+                    // Dictionary の要素は ".Array.data[i].key/value" の2段で表れる。
+                    // 自分自身がキーか値なら、持ち主は C# 上に存在しない要素なので辿れない
+                    if (i + 1 >= steps.Count - 1) return null;
+
+                    current = ApplyDictionaryStep(dictionary, property.serializedObject, step, steps[i + 1]);
+                    i++;
+                }
+                else
+                {
+                    current = ApplyStep(current, step);
+                }
+
                 if (current == null) return null;
             }
 
@@ -138,13 +153,14 @@ namespace XXXL0C.Inspector.Editor
         /// propertyPath を「フィールド名」または「配列添字」の列に分解する。
         /// ".Array.data[3]" は1つの添字ステップにまとめる（Unity のパス表現をそのまま辿ると壊れるため）。
         /// </summary>
-        private static List<object> ParsePathSteps(string propertyPath)
+        private static List<PathStep> ParsePathSteps(string propertyPath)
         {
             const string ARRAY_TOKEN = "Array";
             const string DATA_PREFIX = "data[";
 
-            List<object> steps = new List<object>();
+            List<PathStep> steps = new List<PathStep>();
             string[] tokens = propertyPath.Split('.');
+            string path = string.Empty;
 
             int i = 0;
             while (i < tokens.Length)
@@ -155,30 +171,88 @@ namespace XXXL0C.Inspector.Editor
                 {
                     string token = tokens[i + 1];
                     int index = int.Parse(token.Substring(DATA_PREFIX.Length, token.Length - DATA_PREFIX.Length - 1));
-                    steps.Add(index);
+                    path = $"{path}.{ARRAY_TOKEN}.{token}";
+                    steps.Add(new PathStep(null, index, path));
                     i += 2;
                     continue;
                 }
 
-                steps.Add(tokens[i]);
+                path = path.Length == 0 ? tokens[i] : $"{path}.{tokens[i]}";
+                steps.Add(new PathStep(tokens[i], -1, path));
                 i++;
             }
 
             return steps;
         }
 
-        private static object ApplyStep(object current, object step)
+        private static object ApplyStep(object current, PathStep step)
         {
             if (current == null) return null;
 
-            if (step is int index)
+            if (step.IsIndex)
             {
-                if (!(current is IList list) || index < 0 || index >= list.Count) return null;
-                return list[index];
+                if (!(current is IList list) || step.Index >= list.Count) return null;
+                return list[step.Index];
             }
 
-            FieldInfo field = FindSerializedField(current.GetType(), (string)step);
+            FieldInfo field = FindSerializedField(current.GetType(), step.Name);
             return field?.GetValue(current);
+        }
+
+        /// <summary>
+        /// Dictionary の要素は添字ではなくキーで引く。重複キーや null キーの要素は実行時の Dictionary に
+        /// 入らないので、シリアライズ上の添字と実行時の並びは一致しない。
+        /// </summary>
+        private static object ApplyDictionaryStep(
+            IDictionary dictionary, SerializedObject serializedObject, PathStep entryStep, PathStep memberStep)
+        {
+            SerializedProperty keyProperty =
+                serializedObject.FindProperty($"{entryStep.Path}.{DictionaryUtility.KEY_NAME}");
+            if (keyProperty == null || DictionaryUtility.IsNullKey(keyProperty)) return null;
+
+            Type keyType = dictionary.GetType().GetGenericArguments()[0];
+            object key = ToKeyType(keyProperty.boxedValue, keyType);
+
+            // 重複キーの2件目以降は実行時の Dictionary に入っていない。別要素の値を返さないよう、先頭の要素だけ認める
+            int firstIndex = DictionaryUtility.IndexOfKey(
+                serializedObject.FindProperty(PropertyPathUtility.GetParentPath(entryStep.Path)),
+                DictionaryUtility.ToComparableKey(key));
+            if (firstIndex != entryStep.Index || !dictionary.Contains(key)) return null;
+
+            return string.Equals(memberStep.Name, DictionaryUtility.KEY_NAME, StringComparison.Ordinal)
+                ? key
+                : dictionary[key];
+        }
+
+        /// <summary>boxedValue の値を C# のキー型に揃える。enum キーの boxedValue は int で返るため。</summary>
+        private static object ToKeyType(object value, Type keyType)
+        {
+            if (value == null) return null;
+            if (keyType.IsEnum) return Enum.ToObject(keyType, value);
+            if (keyType.IsPrimitive && value.GetType() != keyType) return Convert.ChangeType(value, keyType);
+
+            return value;
+        }
+
+        private readonly struct PathStep
+        {
+            /// <summary>フィールド名。添字ステップなら null。</summary>
+            public string Name { get; }
+
+            /// <summary>配列添字。フィールド名ステップなら -1。</summary>
+            public int Index { get; }
+
+            /// <summary>このステップまでの propertyPath。</summary>
+            public string Path { get; }
+
+            public bool IsIndex => Index >= 0;
+
+            public PathStep(string name, int index, string path)
+            {
+                Name = name;
+                Index = index;
+                Path = path;
+            }
         }
 
         private static bool IsFrameworkNamespace(string namespaceName)

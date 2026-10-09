@@ -28,7 +28,7 @@ namespace XXXL0C.Inspector.Editor
     {
         private const string LOG_PREFIX = "[XXXL0C.Inspector] ";
         private const string STYLE_SHEET_PATH =
-            "Packages/com.xxxl0c.inspector/Editor/Styles/InspectorStyles.uss";
+            "Packages/works.xxxl0c.inspector/Editor/Styles/InspectorStyles.uss";
         private const string SCRIPT_PROPERTY_PATH = "m_Script";
 
         private static StyleSheet _styleSheet;
@@ -149,12 +149,12 @@ namespace XXXL0C.Inspector.Editor
                 else
                 {
                     declineReason = result.DeclineReason;
-                    fieldElement = expand ? CreateNestedFoldout(property) : new PropertyField(property);
+                    fieldElement = CreateDefaultField(property, fieldInfo, expand);
                 }
             }
             else
             {
-                fieldElement = expand ? CreateNestedFoldout(property) : new PropertyField(property);
+                fieldElement = CreateDefaultField(property, fieldInfo, expand);
             }
 
             row.Add(fieldElement);
@@ -190,6 +190,18 @@ namespace XXXL0C.Inspector.Editor
             List<SerializedProperty> children = new List<SerializedProperty>(
                 SerializedFieldUtility.EnumerateDirectChildren(property));
             BuildFields(children, fieldInfo.FieldType, nestedRoot, groupTree, session, depth + 1);
+        }
+
+        private static VisualElement CreateDefaultField(SerializedProperty property, FieldInfo fieldInfo, bool expand)
+        {
+            if (expand) return CreateNestedFoldout(property);
+
+            if (DictionaryUtility.TryGetKeyValueTypes(fieldInfo.FieldType, out Type keyType, out Type valueType))
+            {
+                return new DictionaryField(property, keyType, valueType);
+            }
+
+            return new PropertyField(property);
         }
 
         private static Foldout CreateNestedFoldout(SerializedProperty property)

@@ -21,7 +21,7 @@ namespace XXXL0C.Inspector.Editor
 
         /// <summary>
         /// その型（ネストした [Serializable] クラスやコレクション要素まで含む）に、
-        /// 扱う属性が1つでも付いているか。
+        /// 扱う属性が1つでも付いているか。Dictionary フィールドを持つ型も、属性の有無に関わらず true。
         /// </summary>
         public static bool ContainsHandledAttributes(Type type)
         {
@@ -64,6 +64,13 @@ namespace XXXL0C.Inspector.Editor
 
                 // [SerializeReference] は実際に入る型が静的に分からないので調べ切れない。安全側に倒す
                 if (field.IsDefined(typeof(SerializeReference), false))
+                {
+                    found = true;
+                    break;
+                }
+
+                // Dictionary は属性が無くても扱う（追加欄での重複キー防止と、重複キーの検証）
+                if (DictionaryUtility.IsSerializedDictionary(field.FieldType))
                 {
                     found = true;
                     break;

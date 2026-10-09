@@ -30,5 +30,13 @@ namespace XXXL0C.Inspector.Editor
 
         public const string BUTTON = "l0c-inspector__button";
         public const string BUTTON_FOOTER = "l0c-inspector__button-footer";
+
+        public const string DICTIONARY_FIELD = "l0c-inspector__dictionary";
+        public const string DICTIONARY_ADD = "l0c-inspector__dictionary-add";
+        public const string DICTIONARY_ADD_ROW = "l0c-inspector__dictionary-add-row";
+        public const string DICTIONARY_ADD_KEY = "l0c-inspector__dictionary-add-key";
+        public const string DICTIONARY_ADD_NOTICE = "l0c-inspector__dictionary-add-notice";
+        public const string DICTIONARY_ADD_BUTTON = "l0c-inspector__dictionary-add-button";
+        public const string DICTIONARY_ADD_MESSAGE = "l0c-inspector__dictionary-add-message";
     }
 }

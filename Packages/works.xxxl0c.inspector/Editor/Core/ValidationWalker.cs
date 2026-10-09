@@ -32,26 +32,35 @@ namespace XXXL0C.Inspector.Editor
             WalkState state = new WalkState(root.propertyPath, root.displayName, rootField, results, hasOwnRow);
             // 起点フィールドは常に直接編集できる（トップレベル、または既に独立した行を持つネスト）ので
             // isInsideExpandedParent は true 扱いにして、無用な「反映されない」警告を出さない
-            Visit(root, rootField, rootField.FieldType, state, 0, isInsideExpandedParent: true);
+            Visit(root, rootField, rootField.FieldType, state, 0, isInsideExpandedParent: true, CollectionRole.None);
             RemoveDuplicates(results);
         }
 
-        /// <param name="attributeSource">property に適用される属性の取得元。配列要素は親フィールドを引き継ぐ。</param>
+        /// <param name="attributeSource">property に適用される属性の取得元。コレクションの要素は親フィールドを引き継ぐ。</param>
         /// <param name="valueType">property の値の型。子フィールドを解決するのに使う。</param>
         /// <param name="isInsideExpandedParent">
         /// property の直近の親クラスが自前展開される対象か。
         /// true なら property の装飾属性はインスペクタで実際に反映されるので「反映されない」警告を出さない。
         /// インスペクタの `hasOwnRow` に頼らず独立に判定することで、一括チェックでも同じ結果になる。
         /// </param>
+        /// <param name="role">attributeSource のフィールドから見た property の位置。</param>
         private static void Visit(
             SerializedProperty property,
             FieldInfo attributeSource,
             Type valueType,
             WalkState state,
             int depth,
-            bool isInsideExpandedParent)
+            bool isInsideExpandedParent,
+            CollectionRole role)
         {
             if (depth > MAX_DEPTH) return;
+
+            // Dictionary も SerializedProperty 上は配列なので、配列より先に判定する
+            if (DictionaryUtility.IsSerializedDictionary(valueType))
+            {
+                VisitDictionary(property, attributeSource, valueType, state, depth, isInsideExpandedParent);
+                return;
+            }
 
             // コレクションのコンテナ自体ではルールを実行しない。
             // 要素側が親フィールドの属性を引き継いで評価するため、空リストは何も報告されない
@@ -61,7 +70,7 @@ namespace XXXL0C.Inspector.Editor
                 return;
             }
 
-            RunRules(property, attributeSource, state, isInsideExpandedParent);
+            RunRules(property, attributeSource, state, isInsideExpandedParent, role, valueType);
 
             if (property.propertyType == SerializedPropertyType.ManagedReference)
             {
@@ -77,8 +86,10 @@ namespace XXXL0C.Inspector.Editor
             if (!InspectedTypeCache.ContainsHandledAttributes(valueType)) return;
 
             // この階層がインスペクタで自前展開されるかを、hasOwnRow に頼らず独立に判定する。
-            // InspectorBuilder.CanExpand と同じ基準（[SerializeReference] は対象外、Drawer 持ちは対象外、深さ上限）
-            bool childrenExpandable = property.propertyType != SerializedPropertyType.ManagedReference
+            // InspectorBuilder.CanExpand と同じ基準（[SerializeReference] は対象外、Drawer 持ちは対象外、深さ上限）。
+            // コレクションの要素は1行ずつ展開せず PropertyField の描画に任せるので、その中身も展開されない
+            bool childrenExpandable = role == CollectionRole.None
+                && property.propertyType != SerializedPropertyType.ManagedReference
                 && depth < InspectionLimits.MAX_NESTED_DEPTH
                 && !PropertyDrawerRegistry.HasDrawer(valueType);
 
@@ -98,7 +109,7 @@ namespace XXXL0C.Inspector.Editor
                 string childLabel = BuildLabel(child, state);
                 if (!VisibilityEvaluator.IsVisible(child, childField, childLabel, state.Results)) continue;
 
-                Visit(child, childField, childField.FieldType, state, depth + 1, childrenExpandable);
+                Visit(child, childField, childField.FieldType, state, depth + 1, childrenExpandable, CollectionRole.None);
             }
         }
 
@@ -121,7 +132,69 @@ namespace XXXL0C.Inspector.Editor
             {
                 Visit(
                     property.GetArrayElementAtIndex(i), attributeSource, elementType, state, depth + 1,
-                    isInsideExpandedParent);
+                    isInsideExpandedParent, CollectionRole.Element);
+            }
+        }
+
+        /// <summary>
+        /// Dictionary は属性の有無に関わらず重複キーを検査する。重複した要素は実行時に黙って捨てられるため。
+        /// 要素のキーと値は、Dictionary フィールドの属性を引き継いで検証する。
+        /// </summary>
+        private static void VisitDictionary(
+            SerializedProperty property,
+            FieldInfo attributeSource,
+            Type dictionaryType,
+            WalkState state,
+            int depth,
+            bool isInsideExpandedParent)
+        {
+            DictionaryUtility.TryGetKeyValueTypes(dictionaryType, out Type keyType, out Type valueType);
+            string label = BuildLabel(property, state);
+
+            RunRules(property, attributeSource, state, isInsideExpandedParent, CollectionRole.Dictionary, dictionaryType);
+            ReportDuplicateKeys(property, label, state);
+
+            for (int i = 0; i < property.arraySize; i++)
+            {
+                SerializedProperty entry = property.GetArrayElementAtIndex(i);
+                SerializedProperty key = entry.FindPropertyRelative(DictionaryUtility.KEY_NAME);
+                SerializedProperty value = entry.FindPropertyRelative(DictionaryUtility.VALUE_NAME);
+
+                // "[0].value._x" ではなく、キーで要素を指すラベルにする
+                string entryLabel = $"{label}[{DictionaryUtility.FormatKey(key, i)}]";
+                state.RegisterLabel(key.propertyPath, entryLabel);
+                state.RegisterLabel(value.propertyPath, entryLabel);
+
+                Visit(key, attributeSource, keyType, state, depth + 1, isInsideExpandedParent, CollectionRole.DictionaryKey);
+                Visit(value, attributeSource, valueType, state, depth + 1, isInsideExpandedParent, CollectionRole.DictionaryValue);
+            }
+        }
+
+        private static void ReportDuplicateKeys(SerializedProperty dictionary, string label, WalkState state)
+        {
+            List<List<int>> duplicates;
+            try
+            {
+                duplicates = DictionaryUtility.FindDuplicateGroups(dictionary);
+            }
+            catch (Exception exception)
+            {
+                // キー型のユーザー実装（Equals / GetHashCode）が投げた例外。インスペクタ全体は落とさず報告する
+                state.Results.Add(new ValidationMessage(
+                    ValidationSeverity.Warning,
+                    $"{label} のキーの比較中に例外が発生したため、重複を確認できません: {exception.Message}"));
+                return;
+            }
+
+            foreach (List<int> indices in duplicates)
+            {
+                SerializedProperty key = dictionary.GetArrayElementAtIndex(indices[0])
+                    .FindPropertyRelative(DictionaryUtility.KEY_NAME);
+
+                state.Results.Add(new ValidationMessage(
+                    ValidationSeverity.Error,
+                    $"{label} のキー {DictionaryUtility.FormatKey(key, indices[0])} が {indices.Count} 件重複しています。"
+                    + "実行時は最初の要素だけが使われます。"));
             }
         }
 
@@ -129,7 +202,9 @@ namespace XXXL0C.Inspector.Editor
             SerializedProperty property,
             FieldInfo attributeSource,
             WalkState state,
-            bool isInsideExpandedParent)
+            bool isInsideExpandedParent,
+            CollectionRole role,
+            Type valueType)
         {
             if (attributeSource == null) return;
 
@@ -144,16 +219,20 @@ namespace XXXL0C.Inspector.Editor
                 IValidationRule rule = ExtensionRegistry.FindRule(attributeType);
                 if (rule != null)
                 {
-                    rule.Validate(new ValidationContext(property, attributeSource, attribute, label, state.Results));
+                    rule.Validate(new ValidationContext(
+                        property, attributeSource, attribute, label, state.Results, role, valueType));
                 }
+
+                // Dictionary のキー・値はコンテナと同じ属性を引き継いでいるだけなので、コンテナ側で1回だけ報告する
+                if (role == CollectionRole.DictionaryKey || role == CollectionRole.DictionaryValue) continue;
 
                 ReportUnsupportedNesting(attributeType, attributeSource, label, state, isInsideExpandedParent);
             }
         }
 
         /// <summary>
-        /// 自前展開できなかったネスト（カスタム PropertyDrawer 持ち / [SerializeReference] / 深さ超過）の
-        /// 中にある装飾属性は表示に反映されない。「付けたつもりで効いていない」状態を作らないよう明示する。
+        /// 自前展開できなかったネスト（カスタム PropertyDrawer 持ち / [SerializeReference] / コレクションの要素 /
+        /// 深さ超過）の中にある装飾属性は表示に反映されない。「付けたつもりで効いていない」状態を作らないよう明示する。
         /// 親が自前展開される場合（isInsideExpandedParent）は、装飾は通常どおり反映されるので警告しない。
         /// </summary>
         private static void ReportUnsupportedNesting(
@@ -175,7 +254,15 @@ namespace XXXL0C.Inspector.Editor
 
         private static string BuildLabel(SerializedProperty property, WalkState state)
         {
-            string relativePath = PropertyPathUtility.ToRelativePath(state.RootPath, property.propertyPath);
+            string path = property.propertyPath;
+
+            // Dictionary の要素の配下なら、キーで書いたラベルを起点にする
+            if (state.TryFindRegisteredLabel(path, out string basePath, out string baseLabel))
+            {
+                return baseLabel + PropertyPathUtility.ToRelativePath(basePath, path);
+            }
+
+            string relativePath = PropertyPathUtility.ToRelativePath(state.RootPath, path);
             return relativePath.Length == 0 ? state.RootLabel : state.RootLabel + relativePath;
         }
 
@@ -206,6 +293,9 @@ namespace XXXL0C.Inspector.Editor
         {
             private readonly Predicate<string> _hasOwnRow;
 
+            // Dictionary の要素のキー・値のパスと、それを指すラベル。入れ子なら内側ほど後ろに積まれる
+            private readonly List<(string Path, string Label)> _registeredLabels = new List<(string, string)>();
+
             public string RootPath { get; }
             public string RootLabel { get; }
             public FieldInfo RootField { get; }
@@ -226,6 +316,31 @@ namespace XXXL0C.Inspector.Editor
             }
 
             public bool HasOwnRow(string propertyPath) => _hasOwnRow != null && _hasOwnRow(propertyPath);
+
+            public void RegisterLabel(string propertyPath, string label) => _registeredLabels.Add((propertyPath, label));
+
+            /// <summary>propertyPath 自身か、その祖先として登録されたうち最も深いものを探す。</summary>
+            public bool TryFindRegisteredLabel(string propertyPath, out string basePath, out string label)
+            {
+                for (int i = _registeredLabels.Count - 1; i >= 0; i--)
+                {
+                    string candidate = _registeredLabels[i].Path;
+                    bool matches = string.Equals(propertyPath, candidate, StringComparison.Ordinal)
+                        || (propertyPath.StartsWith(candidate, StringComparison.Ordinal)
+                            && propertyPath.Length > candidate.Length
+                            && propertyPath[candidate.Length] == '.');
+
+                    if (!matches) continue;
+
+                    basePath = candidate;
+                    label = _registeredLabels[i].Label;
+                    return true;
+                }
+
+                basePath = null;
+                label = null;
+                return false;
+            }
         }
     }
 }
